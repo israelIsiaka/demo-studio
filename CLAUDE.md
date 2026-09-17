@@ -9,23 +9,24 @@ Both meet at the **demo package** (format documented at the top of `demo_studio/
 
 ## Privacy rules (the point of the product)
 
-- Voice cloning runs only locally (Chatterbox). Never add a cloud voice service, telemetry, or any upload of the sample or voiced clips.
+- Voice cloning runs only locally (VoxCPM). Never add a cloud voice service, telemetry, or any upload of the recordings or voiced clips.
 - The app binds to 127.0.0.1 only, and every request needs the per-run token plus a local Host header (blocks other websites and DNS rebinding).
-- Never run narration as a remote or cloud agent. The owner's sample lives at `~/Demo Studio/voice/sample.wav`; never copy it into this repo.
+- Never run narration as a remote or cloud agent. The owner's recordings live in `~/Demo Studio/voice/` (`sample.wav` plus a take per tone); never copy them into this repo.
 
 ## Layout
 
 ```
-demo_studio/__init__.py   paths: ~/Demo Studio/{voice,demos,videos,.clips} (override with DEMO_STUDIO_HOME)
-demo_studio/voice.py      Chatterbox: load model (cuda > mps > cpu), clone from sample, voice lines, cache clips by hash
+demo_studio/__init__.py   paths: ~/Demo Studio/{voice,demos,videos,.clips,settings.json} (override with DEMO_STUDIO_HOME)
+demo_studio/voice.py      VoxCPM + Whisper: tones (takes), prompt from the recording, voice lines with word check/retakes, clip cache
 demo_studio/render.py     package -> MP4: fit clips to slots, duck music under speech, effects, limiter
-demo_studio/app.py        local HTTP server + API; demo_studio/index.html is the whole UI
-demo_studio/cli.py        `demo-studio` (app), `demo-studio speak`, `demo-studio render <package>`
+demo_studio/app.py        local HTTP server + API (voice/tone takes, tone choice, preview and video jobs, zip import)
+demo_studio/index.html    the whole UI: monochrome black and white, follows system light/dark, no external assets
+demo_studio/cli.py        `demo-studio` (app), `demo-studio speak`, `demo-studio render <package>` (both take `--tone`)
 kit/studio.mjs            recording kit used by demo scripts (calls the Python CLI via `uv run --project`)
 kit/sound.mjs             synthesised music bed and effects
 kit/examples/             minimal.mjs (one scene; also CI) and tinc.mjs (full demo of the owner's TInC Virtual Quiz app)
 skills/demo-video/        what Claude follows when a user asks the plugin for a demo
-tests/check.py            the end-to-end check (access control, voice upload, zip import, real render)
+tests/check.py            the end-to-end check (access control, voice and tone takes, preview, zip import, real render)
 ```
 
 ## Commands
@@ -41,20 +42,24 @@ uv run demo-studio render "<package>"    # re-mix a package; cached clips make t
 
 ## Decisions and why
 
-- **Chatterbox 0.1.7 (Resemble AI, MIT)**: commercial use is fine. F5-TTS and XTTS were rejected for non-commercial licences. It listens to only the first 10 s of the sample, so the app asks for 10 to 20 s and trims silence.
+- **VoxCPM 1.5 (OpenBMB, Apache-2.0)**, after Chatterbox 0.1.7 lost the owner's African-English accent. Sweep on their voice (scored with the CommonAccent ECAPA embedding; the recording's own halves score 0.844): Chatterbox default (exaggeration 0.5) 0.51 to 0.61, its best (cfg 0.3, exaggeration 0.25) 0.75; VoxCPM cfg 2.0 0.83. The owner picked VoxCPM in a blind A/B, twice. F5-TTS and XTTS were rejected earlier for non-commercial licences.
+- **VoxCPM continues the recording**: the prompt is whole sentences from its first 15 s plus a Whisper transcript. It sometimes adds a lead-in word ("and then"); each line is transcribed (Whisper small.en, word timings), extra words at either end are trimmed, and lines with word error over 0.25 are retaken (best of 3).
+- **Tones are takes, not settings**: VoxCPM copies pace, mood and accent from the recording, and Chatterbox's exaggeration knob was what destroyed the accent. So Calm/Friendly/Energetic are separate recordings (`voice/<tone>.wav`), falling back to the main one.
+- **`torch==2.8.*`**: torchaudio 2.9+ loads audio through torchcodec, which needs system FFmpeg. **`PYTORCH_JIT=0`**: VoxCPM's scripted AudioVAE fails with "Unknown device for graph fuser" on MPS.
+- **Built-in narrator**: without a recording, VoxCPM picks a random voice per line, so one narrator clip is generated once (seed 7) and used as the prompt.
 - **Python app + uv**: users install one tool (uv) and run one `uvx` line; uv fetches Python 3.11 and torch. No Electron, no bundled installers.
-- **`setuptools<81` pin**: resemble-perth (Chatterbox's watermarker) imports `pkg_resources`; without it the model fails with `'NoneType' object is not callable`.
-- **Model load is cache-first** (`try_to_load_from_cache`): no network once downloaded.
+- **Model load is cache-first** (`local_files_only`, falling back to a download only on `LocalEntryNotFoundError`): no network once downloaded.
 - **Mix levels** (`VOICE_GAIN 2.3`): clips are normalised to -20 LUFS, tuned so a render matches the original TInC video (about -14 LUFS overall, speech about 10 dB over the music gaps).
 
 ## Known state (2026-09-17)
 
-- Verified on the owner's M1 (16 GB): the TInC package re-voiced in their voice. Model load 20 s, learning the voice 45 s, the first two lines 1.5 to 3 min (warm-up), then 18 to 46 s per line.
+- The Chatterbox version was verified end to end on the owner's M1 (16 GB). VoxCPM: about 21 to 36 s per line on the M1 before the word check.
 - Windows is untested: CI (`.github/workflows/check.yml`, run manually) covers macos-14 and windows-latest. Windows uses CPU torch; CUDA wheels would need the PyTorch index.
 
 ## Open work
 
-- Benchmark CPU against MPS on the M1; Chatterbox may be faster on CPU there. Consider Chatterbox Turbo for speed.
+- Windows: VoxCPM on CPU speed is unknown; CUDA torch wheels would need the PyTorch index.
+- The owner's current recording has conversation after the passage; a clean re-recording should improve the clone further.
 - Decide public or private before sharing; the README's install line needs a public repo.
 - `kit/examples/tinc.mjs` contains the TInC seed accounts (such as `admin@tinc.test`). Remove or replace it before going public if those are used anywhere real.
 - The plugin flow (`skills/demo-video`) has not been run end to end by a fresh Claude session yet.

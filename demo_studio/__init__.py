@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 
 HOME = Path(os.environ.get("DEMO_STUDIO_HOME", Path.home() / "Demo Studio"))
-SAMPLE = HOME / "voice" / "sample.wav"
+VOICE = HOME / "voice"
+SAMPLE = VOICE / "sample.wav"
 DEMOS = HOME / "demos"
 VIDEOS = HOME / "videos"
+SETTINGS = HOME / "settings.json"

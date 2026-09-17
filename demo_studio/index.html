@@ -6,100 +6,232 @@
 <title>Demo Studio</title>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #fff; --text: #16191d; --muted: #5d6670; --line: #dde1e6;
-    --accent: #2c6fd1; --accent-text: #fff; --danger: #c23a32; --ok: #1d7a46;
+    --paper: #ffffff; --ink: #000000; --graphite: #5c5c5c; --rule: #e4e4e4; --well: #f4f4f4;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --script: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #111418; --card: #1a1e24; --text: #eef1f4; --muted: #9aa4ae; --line: #2c333b; --accent: #5b9bf0; --accent-text: #0b1320; --danger: #f07b72; --ok: #5cc98a; }
+    :root { --paper: #000000; --ink: #ffffff; --graphite: #a3a3a3; --rule: #262626; --well: #141414; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
-  h1 { font-size: 28px; margin: 0; }
-  .lede { color: var(--muted); margin: 4px 0 28px; }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  h2 { font-size: 17px; margin: 0 0 12px; display: flex; gap: 10px; align-items: center; }
-  h2 .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: 14px; display: grid; place-items: center; flex: none; }
-  p { margin: 0 0 12px; }
-  .muted { color: var(--muted); font-size: 14px; }
-  .passage { border-left: 3px solid var(--accent); padding: 8px 14px; margin: 0 0 14px; font-size: 18px; }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  button, .file { font: inherit; font-size: 15px; border-radius: 8px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-  button.danger { color: var(--danger); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button:focus-visible, .file:focus-within, label.demo:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .file input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .rec { color: var(--danger); font-weight: 600; font-variant-numeric: tabular-nums; }
-  audio { width: 100%; margin-bottom: 12px; }
-  label.demo { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-  label.demo:has(input:checked) { border-color: var(--accent); }
-  label.demo input { margin-top: 5px; accent-color: var(--accent); }
-  #working, #done, #first-run { margin-top: 12px; }
-  details { margin-top: 4px; font-size: 14px; color: var(--muted); }
-  details ol { margin: 6px 0 0; padding-left: 20px; }
-  .error { color: var(--danger); font-size: 14px; margin: 10px 0 0; }
-  .ok { color: var(--ok); font-weight: 600; }
-  .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* Shell: a sticky rail with the four steps, and one working column. */
+  .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+  .rail { position: sticky; top: 0; height: 100vh; padding: 36px 28px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 40px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; font-size: 19px; letter-spacing: -0.02em; margin: 0; }
+  .brand svg { width: 26px; height: 26px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .steps a { display: grid; grid-template-columns: 28px 1fr; gap: 2px 12px; padding: 10px 12px; margin: 0 -12px; border-radius: 12px; color: inherit; text-decoration: none; }
+  .steps a:hover { background: var(--well); }
+  .steps .mark { grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .steps .done .mark, .steps [aria-current="step"] .mark { background: var(--ink); color: var(--paper); }
+  .steps [aria-current="step"] .mark { box-shadow: 0 0 0 3px var(--paper), 0 0 0 4.5px var(--ink); }
+  .steps .name { font-weight: 650; line-height: 1.2; }
+  .steps .status { color: var(--graphite); font-size: 13px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .privacy { margin-top: auto; color: var(--graphite); font-size: 13px; max-width: 26ch; }
+
+  main { padding: 56px clamp(20px, 6vw, 88px) 96px; max-width: 880px; }
+  section { padding-bottom: 72px; scroll-margin-top: 24px; }
+  main h2 { font-size: clamp(30px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.035em; font-weight: 800; margin: 0 0 10px; }
+  .lede { color: var(--graphite); margin: 0 0 28px; max-width: 60ch; }
+  p { margin: 0 0 14px; }
+  .small { font-size: 14px; }
+  .muted { color: var(--graphite); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+  /* Buttons: black pills for the main action, outlined pills for the rest. */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 22px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; font-weight: 600; font-size: 15px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--well); }
+  .btn.solid { background: var(--ink); color: var(--paper); }
+  .btn.solid:hover { opacity: .85; }
+  .btn.quiet { border-color: var(--rule); }
+  .btn.quiet:hover { border-color: var(--ink); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn:disabled:hover { background: transparent; opacity: .35; }
+  .btn.solid:disabled:hover { background: var(--ink); }
+  .file { position: relative; }
+  .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* The booth: the script to read, the record button and a live level meter. */
+  .script { font-family: var(--script); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.45; letter-spacing: -0.005em; margin: 0 0 32px; max-width: 34ch; }
+  .booth { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+  .record { width: 88px; height: 88px; border-radius: 50%; border: none; background: var(--ink); color: var(--paper); cursor: pointer; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none; }
+  .record .dot { width: 26px; height: 26px; border-radius: 50%; background: var(--paper); transition: border-radius .2s, width .2s, height .2s; }
+  .record.live .dot { width: 22px; height: 22px; border-radius: 4px; }
+  .record:disabled { opacity: .35; cursor: not-allowed; }
+  .record.live:disabled { opacity: 1; cursor: default; }
+  .meter { display: flex; align-items: center; gap: 3px; height: 56px; flex: 1; min-width: 160px; max-width: 360px; }
+  .meter span { flex: 1; min-width: 2px; height: 4px; border-radius: 2px; background: var(--ink); }
+  .meter.idle span { background: var(--rule); }
+  .clock { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; min-width: 3.2ch; }
+  .booth-note { color: var(--graphite); font-size: 14px; min-height: 22px; margin-top: 12px; }
+  .saved { display: grid; gap: 16px; max-width: 520px; }
+  audio { width: 100%; height: 40px; }
+
+  /* Tones: a segmented control; a tone without a take opens its own small booth. */
+  .segments { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; background: var(--well); margin-bottom: 20px; }
+  .segments button { border: none; background: transparent; border-radius: 999px; min-height: 38px; padding: 0 16px; font-weight: 600; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .segments button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .segments .has { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .segments .none { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; }
+  .panel { border: 1.5px solid var(--rule); border-radius: 20px; padding: 22px; max-width: 620px; display: grid; gap: 14px; }
+  .panel h3 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+  .panel p { margin: 0; }
+  .panel .meter { height: 40px; max-width: 240px; }
+  .panel .clock { font-size: 22px; }
+  .panel .clock.cue { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+  .panel .meter.idle { display: none; }
+  .panel .record { width: 56px; height: 56px; }
+  .panel .record .dot { width: 18px; height: 18px; }
+  .panel .record.live .dot { width: 16px; height: 16px; }
+
+  /* Demos: selectable rows, and a drop zone for packages. */
+  .demos { display: grid; gap: 10px; max-width: 620px; margin-bottom: 12px; }
+  .demo { display: grid; grid-template-columns: 22px 1fr; gap: 4px 14px; padding: 16px 18px; border: 1.5px solid var(--rule); border-radius: 16px; cursor: pointer; }
+  .demo:hover { border-color: var(--graphite); }
+  .demo:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .demo:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .demo input { grid-row: span 2; width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ink); }
+  .demo strong { font-size: 17px; letter-spacing: -0.01em; }
+  .demo details { grid-column: 2; font-size: 14px; color: var(--graphite); }
+  .demo summary { cursor: pointer; width: fit-content; }
+  .demo ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+  .drop { position: relative; display: grid; place-items: center; text-align: center; max-width: 620px; padding: 22px; border: 1.5px dashed var(--graphite); border-radius: 16px; color: var(--graphite); font-size: 15px; }
+  .drop strong { color: var(--ink); }
+  .drop.over { border-style: solid; border-color: var(--ink); background: var(--well); }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* Progress and results. */
+  .progress { display: grid; gap: 10px; max-width: 520px; margin-top: 18px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .4s ease; }
+  .bar.unknown i { width: 30%; animation: slide 1.2s ease-in-out infinite alternate; }
+  @keyframes slide { from { transform: translateX(-10%); } to { transform: translateX(240%); } }
+  .step { font-weight: 600; }
+  .ready { margin-top: 18px; display: grid; gap: 14px; }
+  .ready h3 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+  .error { margin: 14px 0 0; padding-left: 12px; border-left: 3px solid var(--ink); font-weight: 600; max-width: 60ch; }
+  .preview { margin-top: 16px; max-width: 520px; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail { position: sticky; z-index: 2; height: auto; padding: 14px 20px; flex-direction: row; align-items: center; gap: 20px; background: var(--paper); border-right: none; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+    .steps { display: flex; gap: 6px; }
+    .steps a { grid-template-columns: 24px; padding: 4px; margin: 0; }
+    .steps .mark { width: 24px; height: 24px; grid-row: auto; font-size: 12px; }
+    .steps .name, .steps .status, .privacy { display: none; }
+    main { padding-top: 36px; }
+    section { padding-bottom: 56px; }
+    .record { width: 72px; height: 72px; }
+  }
+  @media (max-width: 520px) {
+    .segments { display: grid; grid-template-columns: 1fr 1fr; border-radius: 22px; width: 100%; }
+    .segments button { justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .bar i, .record .dot { transition: none; }
+    .bar.unknown i { animation: none; width: 100%; opacity: .35; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>Demo Studio</h1>
-  <p class="lede">Put your voice on product demo videos. Your voice and videos never leave this computer.</p>
+<div class="shell">
+  <nav class="rail" aria-label="Steps">
+    <h1 class="brand">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="9" width="3" height="8" rx="1.5" fill="currentColor"/><rect x="6.5" y="4" width="3" height="18" rx="1.5" fill="currentColor"/><rect x="12" y="1" width="3" height="24" rx="1.5" fill="currentColor"/><rect x="17.5" y="6" width="3" height="14" rx="1.5" fill="currentColor"/><rect x="23" y="10" width="3" height="6" rx="1.5" fill="currentColor"/></svg>
+      Demo Studio
+    </h1>
+    <ol class="steps" id="steps">
+      <li><a href="#voice"><span class="mark">1</span><span class="name">Record your voice</span><span class="status" data-status="voice"></span></a></li>
+      <li><a href="#tone"><span class="mark">2</span><span class="name">Pick a tone</span><span class="status" data-status="tone"></span></a></li>
+      <li><a href="#demo"><span class="mark">3</span><span class="name">Pick a demo</span><span class="status" data-status="demo"></span></a></li>
+      <li><a href="#video"><span class="mark">4</span><span class="name">Create the video</span><span class="status" data-status="video"></span></a></li>
+    </ol>
+    <p class="privacy">Your voice, recordings and videos stay on this computer.</p>
+  </nav>
 
-  <section aria-labelledby="voice-h">
-    <h2 id="voice-h"><span class="n">1</span>Your voice</h2>
-    <div id="voice-none">
-      <p>Find a quiet spot. Press <strong>Record</strong> and read this aloud in the tone you want for your demos:</p>
-      <p class="passage">Hi, let me show you how this works. Setting up takes about a minute, and once you're in, everything you need is right here on one screen. Let's take a look.</p>
-      <div class="row">
-        <button class="primary" id="record">Record</button>
-        <span class="rec" id="timer" hidden></span>
-        <label class="file">Or choose a recording<input type="file" id="voice-file" accept="audio/*,video/*"></label>
+  <main>
+    <section id="voice" aria-labelledby="voice-h">
+      <h2 id="voice-h">Record your voice</h2>
+      <div id="voice-none">
+        <p class="lede">Find somewhere quiet, with nobody else talking. Press record and read this once, the way you'd normally speak.</p>
+        <p class="script">Hi, let me show you how this works. Setting up takes about a minute, and once you're in, everything you need is right here on one screen. Let's take a look.</p>
+        <div class="booth">
+          <button class="record" id="record" aria-label="Start recording"><span class="dot"></span></button>
+          <span class="clock" id="clock" aria-live="off">0:00</span>
+          <div class="meter idle" id="meter" aria-hidden="true"></div>
+        </div>
+        <p class="booth-note" id="booth-note" aria-live="polite">Speak for 10 to 20 seconds. Recording stops by itself at 20.</p>
+        <div class="row"><label class="btn quiet file">Upload a recording<input type="file" id="voice-file" accept="audio/*,video/*"></label></div>
       </div>
-    </div>
-    <div id="voice-saved" hidden>
-      <p class="ok">Your voice is saved on this computer.</p>
-      <audio id="voice-audio" controls preload="none"></audio>
-      <div class="row">
-        <button id="again">Record again</button>
-        <button class="danger" id="forget">Delete my voice</button>
+      <div id="voice-saved" hidden>
+        <p class="lede">Your voice is saved. Play it back to check it's clear, with no one else in it.</p>
+        <div class="saved">
+          <audio id="voice-audio" controls preload="none"></audio>
+          <div class="row">
+            <button class="btn" id="again">Record again</button>
+            <button class="btn quiet" id="forget">Delete voice</button>
+          </div>
+        </div>
       </div>
-    </div>
-    <p class="error" id="voice-error" role="alert" hidden></p>
-  </section>
+      <p class="error" id="voice-error" role="alert" hidden></p>
+    </section>
 
-  <section aria-labelledby="demo-h">
-    <h2 id="demo-h"><span class="n">2</span>Choose a demo</h2>
-    <div id="demos"></div>
-    <p class="muted" id="no-demos" hidden>No demos yet. Add a demo package (.zip) someone sent you, or make one with the Demo Studio plugin for Claude Code.</p>
-    <label class="file">Add a demo (.zip)<input type="file" id="demo-file" accept=".zip"></label>
-    <p class="error" id="demo-error" role="alert" hidden></p>
-  </section>
+    <section id="tone" aria-labelledby="tone-h">
+      <h2 id="tone-h">Pick a tone</h2>
+      <p class="lede">Demo Studio copies how you speak, accent included. To add a tone, read the same passage again in that tone.</p>
+      <div class="segments" id="segments" role="group" aria-label="Tones"></div>
+      <div class="panel" id="tone-panel"></div>
+      <div class="preview">
+        <button class="btn" id="preview" disabled>Preview tone</button>
+        <div class="progress" id="preview-working" hidden><div class="bar unknown"><i></i></div><span class="step" aria-live="polite"></span></div>
+        <audio id="preview-audio" controls hidden style="margin-top:14px"></audio>
+      </div>
+      <p class="error" id="tone-error" role="alert" hidden></p>
+    </section>
 
-  <section aria-labelledby="create-h">
-    <h2 id="create-h"><span class="n">3</span>Create your video</h2>
-    <button class="primary" id="create" disabled>Create video</button>
-    <div class="row" id="working" hidden><span class="spinner" aria-hidden="true"></span><span id="step" aria-live="polite"></span></div>
-    <div id="done" hidden>
-      <p class="ok">Your video is ready.</p>
-      <div class="row"><button class="primary" id="play">Play video</button><button id="show">Show in folder</button></div>
-    </div>
-    <p class="muted" id="first-run">The first video takes longer: Demo Studio downloads its voice model (about 3 GB) once.</p>
-    <p class="error" id="create-error" role="alert" hidden></p>
-  </section>
-</main>
+    <section id="demo" aria-labelledby="demo-h">
+      <h2 id="demo-h">Pick a demo</h2>
+      <p class="lede" id="demo-lede">A demo is the recorded product walkthrough. Your voice replaces the narrator; the pictures and timing stay the same.</p>
+      <div class="demos" id="demos"></div>
+      <label class="drop" id="drop">
+        <span><strong>Add a demo package</strong><br>Drop a .zip here or click to choose one</span>
+        <input type="file" id="demo-file" accept=".zip">
+      </label>
+      <p class="error" id="demo-error" role="alert" hidden></p>
+    </section>
+
+    <section id="video" aria-labelledby="video-h">
+      <h2 id="video-h">Create the video</h2>
+      <p class="lede" id="first-run">The first video takes longer, because the voice models (about 2.5 GB) download once.</p>
+      <button class="btn solid" id="create" disabled>Create video</button>
+      <div class="progress" id="video-working" hidden><div class="bar unknown"><i></i></div><span class="step" aria-live="polite"></span></div>
+      <div class="ready" id="done" hidden>
+        <h3>Video ready</h3>
+        <div class="row"><button class="btn solid" id="play">Play video</button><button class="btn" id="show">Show in folder</button></div>
+      </div>
+      <p class="error" id="create-error" role="alert" hidden></p>
+    </section>
+  </main>
+</div>
 <script>
 const T = '__TOKEN__';
 const $ = (id) => document.getElementById(id);
 const api = (path, params = {}) => `${path}?${new URLSearchParams({ t: T, ...params })}`;
-let state = { voice: false, demos: [], job: {} };
-let chosen = null;
+const make = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children); return node; };
+let state = { voice: false, tone: 'main', tones: [], demos: [], job: {} };
+let chosen = null;      // demo id
+let viewing = null;     // tone shown in the panel (may not be recorded yet)
+let previewShown = null;
 
 function showError(id, message) {
   $(id).textContent = message || '';
@@ -107,12 +239,205 @@ function showError(id, message) {
 }
 
 async function post(path, body, params, errorId) {
-  showError(errorId);
+  if (errorId) showError(errorId);
   const response = await fetch(api(path, params), { method: 'POST', body });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) showError(errorId, result.error || 'Something went wrong. Try again.');
+  if (!response.ok && errorId) showError(errorId, result.error || 'That didn\'t work. Try again.');
   await refresh();
   return response.ok;
+}
+
+const duration = (seconds) => {
+  const m = Math.floor(seconds / 60), s = Math.round(seconds % 60);
+  return m ? `${m} min ${s} s` : `${s} s`;
+};
+
+// ---------------------------------------------------------------- recording
+
+function meterBars(meter, count) {
+  if (meter.childElementCount !== count) meter.replaceChildren(...Array.from({ length: count }, () => document.createElement('span')));
+  return [...meter.children];
+}
+
+let session = null;
+async function record({ tone, button, clock, meter, note, errorId }) {
+  if (session) return session.stop();
+  showError(errorId);
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
+  } catch {
+    return showError(errorId, 'Demo Studio needs microphone access. Allow it for this page in your browser, or upload a recording.');
+  }
+  const chunks = [];
+  const recorder = new MediaRecorder(stream);
+  const context = new AudioContext();
+  const analyser = Object.assign(context.createAnalyser(), { fftSize: 256 });
+  context.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Uint8Array(analyser.fftSize);
+  const bars = meterBars(meter, meter.clientWidth > 300 ? 40 : 24);
+  const history = bars.map(() => 0);
+  const started = performance.now();
+  let frame;
+  meter.classList.remove('idle');
+  button.classList.add('live');
+  button.setAttribute('aria-label', 'Stop recording');
+
+  const tick = () => {
+    const seconds = (performance.now() - started) / 1000;
+    clock.classList.remove('cue');
+    clock.textContent = `0:${String(Math.floor(seconds)).padStart(2, '0')}`;
+    analyser.getByteTimeDomainData(samples);
+    const level = Math.min(1, Math.sqrt(samples.reduce((sum, v) => sum + ((v - 128) / 128) ** 2, 0) / samples.length) * 4);
+    history.push(level);
+    history.shift();
+    bars.forEach((bar, i) => (bar.style.height = `${Math.max(4, history[i] * meter.clientHeight)}px`));
+    button.disabled = seconds < 10;
+    if (note) note.textContent = seconds < 10 ? 'Keep reading. You can stop after 10 seconds.' : 'Stop when you finish the passage.';
+    if (seconds >= 20) return session.stop();
+    frame = requestAnimationFrame(tick);
+  };
+
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  recorder.onstop = async () => {
+    cancelAnimationFrame(frame);
+    stream.getTracks().forEach((track) => track.stop());
+    context.close();
+    session = null;
+    button.classList.remove('live');
+    button.setAttribute('aria-label', 'Start recording');
+    button.disabled = false;
+    meter.classList.add('idle');
+    bars.forEach((bar) => (bar.style.height = '4px'));
+    clock.textContent = '0:00';
+    if (note) note.textContent = 'Saving…';
+    $('voice-audio').removeAttribute('src');
+    await post('/api/voice', new Blob(chunks), { tone }, errorId);
+    if (note) note.textContent = 'Speak for 10 to 20 seconds. Recording stops by itself at 20.';
+  };
+  session = { stop: () => recorder.state !== 'inactive' && recorder.stop() };
+  recorder.start();
+  button.disabled = true;
+  tick();
+}
+
+// ---------------------------------------------------------------- rendering
+
+function renderRail() {
+  const tone = state.tones.find((t) => t.id === state.tone);
+  const demo = state.demos.find((d) => d.id === chosen);
+  const job = state.job;
+  const status = {
+    voice: state.voice ? 'Recorded' : 'Not recorded',
+    tone: state.voice && tone ? tone.label : 'Needs your voice first',
+    demo: demo ? demo.title : 'None picked',
+    video: job.kind === 'video' ? { working: job.step, done: 'Ready', error: 'Didn\'t finish' }[job.state] || '' : 'Not started',
+  };
+  const done = { voice: state.voice, tone: state.voice, demo: Boolean(demo), video: job.kind === 'video' && job.state === 'done' };
+  const current = ['voice', 'tone', 'demo', 'video'].find((key) => !done[key]);
+  document.querySelectorAll('[data-status]').forEach((node) => {
+    const key = node.dataset.status;
+    node.textContent = status[key];
+    const link = node.closest('a');
+    link.querySelector('.mark').textContent = done[key] ? '✓' : ['voice', 'tone', 'demo', 'video'].indexOf(key) + 1;
+    link.parentElement.classList.toggle('done', done[key]);
+    if (key === current) link.setAttribute('aria-current', 'step');
+    else link.removeAttribute('aria-current');
+  });
+}
+
+function renderTones() {
+  if (session) return;
+  if (!state.tones.some((t) => t.id === viewing)) viewing = state.tone;
+  $('segments').replaceChildren(...state.tones.map((tone) => {
+    const usable = tone.id === 'main' ? state.voice : tone.recorded;
+    const button = make('button', { type: 'button', title: usable ? tone.label : `${tone.label} (not recorded yet)` }, make('span', { className: usable ? 'has' : 'none', ariaHidden: 'true' }), tone.label);
+    button.setAttribute('aria-pressed', String(tone.id === viewing));
+    button.onclick = async () => {
+      viewing = tone.id;
+      if (usable && tone.id !== state.tone) await post('/api/tone', null, { tone: tone.id }, 'tone-error');
+      else renderTones();
+    };
+    return button;
+  }));
+
+  const tone = state.tones.find((t) => t.id === viewing);
+  const panel = $('tone-panel');
+  if (!tone) return panel.replaceChildren();
+  if (tone.id === 'main') {
+    return panel.replaceChildren(
+      make('h3', {}, 'My recording'),
+      make('p', { className: 'small muted' }, state.voice ? 'Your videos sound the way you read in step 1.' : 'Record your voice in step 1 first.'),
+    );
+  }
+  const heading = make('h3', {}, tone.label);
+  const hint = make('p', { className: 'small muted' }, tone.recorded ? `${tone.hint} Recorded.` : `Not recorded yet. ${tone.hint}`);
+  const button = make('button', { className: 'record', ariaLabel: `Record the ${tone.label} tone`, disabled: !state.voice || !window.MediaRecorder }, make('span', { className: 'dot' }));
+  const clock = make('span', { className: 'clock cue' }, tone.recorded ? 'Record again' : 'Record this tone');
+  const meter = make('div', { className: 'meter idle', ariaHidden: 'true' });
+  button.onclick = () => record({ tone: tone.id, button, clock, meter, errorId: 'tone-error' });
+  const children = [heading, hint, make('div', { className: 'booth' }, button, clock, meter)];
+  if (tone.recorded) {
+    children.push(make('audio', { controls: true, preload: 'none', src: api('/api/voice', { tone: tone.id, v: Date.now() }) }));
+    const remove = make('button', { className: 'btn quiet', type: 'button' }, `Remove ${tone.label.toLowerCase()} take`);
+    remove.onclick = () => post('/api/voice/delete', null, { tone: tone.id }, 'tone-error');
+    children.push(make('div', { className: 'row' }, remove));
+  }
+  panel.replaceChildren(...children);
+  requestAnimationFrame(() => meterBars(meter, 24));
+}
+
+function renderDemos() {
+  const list = $('demos');
+  const ids = state.demos.map((d) => d.id).join('\n');
+  if (list.dataset.ids !== ids) {
+    list.dataset.ids = ids;
+    list.replaceChildren(...state.demos.map((demo) => {
+      const radio = make('input', { type: 'radio', name: 'demo', value: demo.id });
+      radio.onchange = () => { chosen = demo.id; render(); };
+      const lines = make('ol', {}, ...demo.lines.map((line) => make('li', {}, line)));
+      return make('label', { className: 'demo' },
+        radio,
+        make('strong', {}, demo.title),
+        make('span', { className: 'small muted' }, `${duration(demo.duration)}, ${demo.lines.length} lines`),
+        make('details', {}, make('summary', {}, 'Read the script'), lines),
+      );
+    }));
+  }
+  if (!state.demos.some((d) => d.id === chosen)) chosen = state.demos.length === 1 ? state.demos[0].id : null;
+  list.querySelectorAll('input').forEach((radio) => (radio.checked = radio.value === chosen));
+  $('demo-lede').textContent = state.demos.length
+    ? 'A demo is the recorded product walkthrough. Your voice replaces the narrator; the pictures and timing stay the same.'
+    : 'No demos yet. Add a demo package someone sent you, or make one with the Demo Studio plugin for Claude Code.';
+}
+
+function renderProgress(box, job) {
+  box.querySelector('.step').textContent = job.step || '';
+  const match = /(\d+) of (\d+)/.exec(job.step || '');
+  const bar = box.querySelector('.bar');
+  bar.classList.toggle('unknown', !match);
+  bar.querySelector('i').style.width = match ? `${Math.round(((match[1] - 1) / match[2]) * 100)}%` : '';
+}
+
+function render() {
+  const job = state.job;
+  const working = job.state === 'working';
+  for (const kind of ['preview', 'video']) {
+    const box = $(`${kind}-working`);
+    box.hidden = !(working && job.kind === kind);
+    if (!box.hidden) renderProgress(box, job);
+  }
+  $('preview').disabled = !state.voice || working;
+  $('create').disabled = !state.voice || !chosen || working;
+  $('done').hidden = !(job.kind === 'video' && job.state === 'done');
+  $('first-run').hidden = job.kind === 'video' && job.state === 'done';
+  if (job.kind === 'preview' && job.state === 'done' && previewShown !== job.result) {
+    previewShown = job.result;
+    Object.assign($('preview-audio'), { hidden: false, src: api('/api/preview', { v: Date.now() }) }).play().catch(() => {});
+  }
+  if (job.state === 'error') showError(job.kind === 'preview' ? 'tone-error' : 'create-error', `That didn't finish: ${job.error}`);
+  renderRail();
+  if (working) setTimeout(refresh, 1000);
 }
 
 async function refresh() {
@@ -120,111 +445,49 @@ async function refresh() {
   $('voice-none').hidden = state.voice;
   $('voice-saved').hidden = !state.voice;
   if (state.voice && !$('voice-audio').src) $('voice-audio').src = api('/api/voice', { v: Date.now() });
-
-  const list = $('demos');
-  const ids = state.demos.map((d) => d.id).join('\n');
-  if (list.dataset.ids !== ids) {
-    list.dataset.ids = ids;
-    list.replaceChildren(...state.demos.map((demo) => {
-      const label = document.createElement('label');
-      label.className = 'demo';
-      const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'demo', value: demo.id, checked: demo.id === chosen });
-      radio.onchange = () => { chosen = demo.id; render(); };
-      const text = document.createElement('div');
-      const title = document.createElement('strong');
-      title.textContent = demo.title;
-      const meta = Object.assign(document.createElement('div'), { className: 'muted', textContent: `${Math.round(demo.duration)} seconds · ${demo.lines.length} lines` });
-      const details = document.createElement('details');
-      details.append(Object.assign(document.createElement('summary'), { textContent: 'What the narrator says' }));
-      const ol = document.createElement('ol');
-      ol.append(...demo.lines.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
-      details.append(ol);
-      text.append(title, meta, details);
-      label.append(radio, text);
-      return label;
-    }));
-  }
-  if (!state.demos.some((d) => d.id === chosen)) chosen = state.demos.length === 1 ? state.demos[0].id : null;
-  list.querySelectorAll('input').forEach((radio) => (radio.checked = radio.value === chosen));
-  $('no-demos').hidden = state.demos.length > 0;
+  renderTones();
+  renderDemos();
   render();
 }
 
-function render() {
-  const job = state.job;
-  const working = job.state === 'working';
-  $('create').disabled = !state.voice || !chosen || working;
-  $('working').hidden = !working;
-  $('step').textContent = job.step || '';
-  $('done').hidden = job.state !== 'done';
-  $('first-run').hidden = job.state === 'done';
-  showError('create-error', job.state === 'error' ? `The video couldn't be made: ${job.error}` : '');
-  if (working) setTimeout(refresh, 1000);
-}
+// ---------------------------------------------------------------- actions
 
-// Recording: 10 to 20 seconds from the microphone, then saved on this computer.
-let recorder = null;
-$('record').onclick = async () => {
-  if (recorder) return recorder.stop();
-  showError('voice-error');
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
-  } catch {
-    return showError('voice-error', 'Demo Studio needs microphone access. Allow it in your browser, or choose a recording instead.');
-  }
-  const chunks = [];
-  recorder = new MediaRecorder(stream);
-  recorder.ondataavailable = (e) => chunks.push(e.data);
-  const started = Date.now();
-  const tick = setInterval(() => {
-    const s = Math.floor((Date.now() - started) / 1000);
-    $('timer').textContent = `Recording ${s}s${s < 10 ? ' (keep going)' : ''}`;
-    $('record').disabled = s < 10;
-    if (s >= 20) recorder.stop();
-  }, 250);
-  recorder.onstop = async () => {
-    clearInterval(tick);
-    stream.getTracks().forEach((track) => track.stop());
-    recorder = null;
-    Object.assign($('record'), { textContent: 'Record', disabled: false });
-    $('timer').hidden = true;
-    $('voice-audio').removeAttribute('src');
-    await post('/api/voice', new Blob(chunks), {}, 'voice-error');
-  };
-  recorder.start();
-  Object.assign($('record'), { textContent: 'Stop', disabled: true });
-  Object.assign($('timer'), { hidden: false, textContent: 'Recording 0s (keep going)' });
-};
+$('record').onclick = () => record({ tone: 'main', button: $('record'), clock: $('clock'), meter: $('meter'), note: $('booth-note'), errorId: 'voice-error' });
 $('voice-file').onchange = async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
-  if (!file) return;
-  $('voice-audio').removeAttribute('src');
-  await post('/api/voice', file, {}, 'voice-error');
+  if (file) await post('/api/voice', file, { tone: 'main' }, 'voice-error');
 };
-$('again').onclick = () => { $('voice-none').hidden = false; $('voice-saved').hidden = true; };
+$('again').onclick = () => { $('voice-none').hidden = false; $('voice-saved').hidden = true; meterBars($('meter'), 40); };
 $('forget').onclick = async () => {
-  if (!confirm('Delete your voice recording and every line voiced with it?')) return;
+  if (!confirm('Delete your voice, every tone you recorded, and everything voiced with them?')) return;
   $('voice-audio').removeAttribute('src');
+  $('preview-audio').hidden = true;
   await post('/api/voice/delete', null, {}, 'voice-error');
 };
 
-$('demo-file').onchange = async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
+async function addDemo(file) {
   if (!file) return;
-  if (await post('/api/demos', file, { name: file.name.replace(/\.zip$/i, '') }, 'demo-error') && !chosen) {
-    chosen = state.demos.at(-1)?.id ?? null;
+  const name = file.name.replace(/\.zip$/i, '');
+  const before = new Set(state.demos.map((d) => d.id));
+  if (await post('/api/demos', file, { name }, 'demo-error')) {
+    chosen = state.demos.find((d) => !before.has(d.id))?.id ?? chosen;
     render();
   }
-};
+}
+$('demo-file').onchange = (e) => { const file = e.target.files[0]; e.target.value = ''; addDemo(file); };
+const drop = $('drop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); addDemo(e.dataTransfer.files[0]); });
 
+$('preview').onclick = () => { $('preview-audio').hidden = true; post('/api/preview', null, {}, 'tone-error'); };
 $('create').onclick = () => post('/api/create', JSON.stringify({ demo: chosen }), {}, 'create-error');
 $('play').onclick = () => fetch(api('/api/open', { what: 'video' }), { method: 'POST' });
 $('show').onclick = () => fetch(api('/api/open', { what: 'folder' }), { method: 'POST' });
 
-if (!window.MediaRecorder) $('record').hidden = true;
+if (!window.MediaRecorder) $('record').disabled = true;
+meterBars($('meter'), 40);
 refresh();
 </script>
 </body>

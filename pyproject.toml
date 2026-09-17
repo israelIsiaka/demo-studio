@@ -6,10 +6,15 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-  "chatterbox-tts==0.1.7",
+  "voxcpm==2.0.3",
+  # torchaudio 2.9+ loads audio through torchcodec, which needs FFmpeg installed system-wide.
+  "torch==2.8.*",
+  "torchaudio==2.8.*",
+  "faster-whisper>=1.1",
   "imageio-ffmpeg>=0.5",
-  # resemble-perth (Chatterbox's watermark) still imports pkg_resources, which newer setuptools dropped.
-  "setuptools<81",
+  "librosa>=0.10",
+  "pyloudnorm>=0.1",
+  "soundfile>=0.12",
 ]
 
 [project.scripts]

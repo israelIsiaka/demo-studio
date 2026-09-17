@@ -1,4 +1,4 @@
-"""End-to-end check of the Demo Studio app: access control, voice upload, demo import, and a real render.
+"""End-to-end check of the Demo Studio app: access control, voice and tone takes, preview, demo import, a real render.
 Run: uv run python tests/check.py   (uses a temporary Demo Studio folder; downloads the voice model if needed)"""
 import io
 import json
@@ -64,13 +64,34 @@ status, reply = call("/api/voice", short.read_bytes())
 assert status == 400 and b"too short" in reply, reply
 assert call("/api/voice", b"not audio")[0] == 400
 speech = voice.speak({"sample": "Hi, let me show you how this works. Setting up takes about a minute, and once you're in, "
-                                "everything you need is right here on one screen. Let's take a look together."}, None)["sample"]
-print(f"ok  built-in voice ({speech['seconds']:.1f} s)")
+                                "everything you need is right here on one screen. Let's take a look together."}, "main")["sample"]
+print(f"ok  built-in narrator ({speech['seconds']:.1f} s)")
 recording = home / "recording.wav"  # played twice, so it clears the 8 s minimum whatever the take's length
 render.ffmpeg("-stream_loop", "1", "-i", speech["file"], str(recording))
 status, reply = call("/api/voice", recording.read_bytes())
 assert status == 200 and SAMPLE.exists(), reply
 print("ok  voice upload")
+
+# Tones: a take per tone, chosen tone saved, unknown tones refused, and a preview in that tone.
+assert call("/api/voice", recording.read_bytes(), tone="calm")[0] == 200 and voice.take("calm").exists()
+assert call("/api/voice", recording.read_bytes(), tone="shouty")[0] == 400
+assert call("/api/tone", b"", tone="calm")[0] == 200
+state = json.loads(call("/api/state")[1])
+assert state["tone"] == "calm" and {t["id"]: t["recorded"] for t in state["tones"]}["calm"], state
+assert call("/api/preview", b"")[0] == 200
+
+
+def finished():
+    while (job := json.loads(call("/api/state")[1])["job"])["state"] == "working":
+        time.sleep(1)
+    return job
+
+
+job = finished()
+assert job["state"] == "done" and job["kind"] == "preview", job
+status, audio = call("/api/preview")
+assert status == 200 and audio[:4] == b"RIFF", status
+print("ok  tone takes and preview")
 
 # Import: a zip whose entries try to escape the demos folder stays inside it.
 buffer = io.BytesIO()
@@ -89,10 +110,9 @@ print("ok  demo import")
 # Create: narrate in the uploaded voice, mix, and check the video has speech.
 assert call("/api/create", json.dumps({"demo": "Check Demo"}).encode())[0] == 200
 started = time.time()
-while (job := json.loads(call("/api/state")[1])["job"])["state"] == "working":
-    time.sleep(1)
-assert job["state"] == "done", job
-video = Path(job["video"])
+job = finished()
+assert job["state"] == "done" and job["kind"] == "video", job
+video = Path(job["result"])
 probe = render.subprocess.run([render.FFMPEG, "-i", str(video), "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True).stderr
 duration = re.search(r"Duration: 00:00:(\d+\.\d+)", probe)
 volume = re.search(r"mean_volume: (-?[\d.]+) dB", probe)
@@ -100,8 +120,9 @@ assert duration and 7.5 < float(duration.group(1)) < 8.5, probe[-800:]
 assert volume and float(volume.group(1)) > -40, probe[-800:]
 print(f"ok  video created in {time.time() - started:.0f} s: {float(duration.group(1)):.1f} s, mean volume {volume.group(1)} dB")
 
-# Forget: deleting the voice removes the sample and every voiced clip.
-assert call("/api/voice/delete", b"")[0] == 200 and not SAMPLE.exists() and not list(voice.CLIPS.glob("*.wav"))
-print("ok  delete voice")
+# Forget: removing a tone keeps the voice; deleting the voice removes every recording and everything made from them.
+assert call("/api/voice/delete", b"", tone="calm")[0] == 200 and not voice.take("calm").exists() and SAMPLE.exists()
+assert call("/api/voice/delete", b"")[0] == 200 and not SAMPLE.exists() and not list(voice.CLIPS.iterdir())
+print("ok  remove tone, delete voice")
 server.shutdown()
 sys.exit(0)

@@ -11,7 +11,7 @@ Plugin folder: `${CLAUDE_PLUGIN_ROOT}`. Read `kit/studio.mjs` (the API) and both
 
 ## Privacy rules (never break these)
 
-- The voice sample is `~/Demo Studio/voice/sample.wav` (Windows: `%USERPROFILE%\Demo Studio\voice\sample.wav`). Never copy it, upload it, commit it, or send it or any voiced clip to a voice service (ElevenLabs, Higgsfield or similar), an artifact, a doc or a cloud drive.
+- The user's recordings are in `~/Demo Studio/voice/` (Windows: `%USERPROFILE%\Demo Studio\voice\`). Never copy, upload or commit them, or send them or any voiced clip to a voice service (ElevenLabs, Higgsfield or similar), an artifact, a doc or a cloud drive.
 - Voicing runs only on this computer. Never run the narration or render step in a remote or cloud agent.
 - The finished MP4 and the demo package (which holds no voice) are the user's to share.
 
@@ -27,12 +27,13 @@ npx --prefix "${CLAUDE_PLUGIN_ROOT}/kit" playwright-core install chromium
 uv run --project "${CLAUDE_PLUGIN_ROOT}" demo-studio --help
 ```
 
-The last command installs the voice engine (about 1 GB, first time only). The first narration also downloads the voice model (about 3 GB).
+The last command installs the voice engine (about 1 GB, first time only). The first narration also downloads the voice models: VoxCPM 1.5 and Whisper, about 2.5 GB.
 
 ## 2. The user's voice
 
-If the voice sample doesn't exist, ask whether they want to record it now or draft with the built-in voice and record later (re-rendering later only re-voices, it doesn't re-record).
-To record: run `uv run --project "${CLAUDE_PLUGIN_ROOT}" demo-studio` in the background. It opens the app in their browser; they complete step 1 (**Your voice**) and tell you. Then stop it.
+If `~/Demo Studio/voice/sample.wav` doesn't exist, ask whether they want to record it now or draft with the built-in narrator and record later (re-rendering later only re-voices, it doesn't re-record).
+To record: run `uv run --project "${CLAUDE_PLUGIN_ROOT}" demo-studio` in the background. It opens the app in their browser; they complete **Record your voice** (and optionally **Pick a tone**) and tell you. Then stop it.
+The voice copies how they read, accent and mood included, so a tone is a separate take (`calm`, `friendly`, `energetic`). Renders use the tone picked in the app; pass `--tone` to the CLI to override.
 
 ## 3. Plan with the user before recording
 
@@ -62,9 +63,10 @@ Extract a frame from the middle of each scene with ffmpeg (`${CLAUDE_PLUGIN_ROOT
 
 ## 6. Hand over
 
-Give the video's path. Explain that to let someone else put their voice on it, they zip the package folder and send it; the other person opens Demo Studio (see the plugin's README) and adds it with **Add a demo (.zip)**.
+Give the video's path. Explain that to let someone else put their voice on it, they zip the package folder and send it; the other person opens Demo Studio (see the plugin's README) and adds it with **Add a demo package**.
 
-## Tuning
+## Voice quality
 
-- A bad take of one line: change its wording slightly, or delete the matching clip in `~/Demo Studio/.clips` (clips are named by a hash; delete them all to re-voice everything).
-- Delivery: `DEMO_STUDIO_EXAGGERATION` (0.25 flat to 0.7 animated, default 0.5) and `DEMO_STUDIO_CFG` (0.3 slower and more deliberate, default 0.5).
+- Every line is checked with speech-to-text and voiced again (up to 3 takes) when words are missing or invented; words VoxCPM adds before or after the line are trimmed off.
+- A take that still sounds wrong: change the line's wording slightly, or delete the clips in `~/Demo Studio/.clips` (named by hash; deleting all re-voices everything).
+- Pace, energy and accent come from the recording itself, not from settings. For a different delivery, have the user record that tone in the app.

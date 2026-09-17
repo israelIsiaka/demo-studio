@@ -15,11 +15,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import DEMOS, SAMPLE, VIDEOS, render, voice
+from . import DEMOS, SAMPLE, VIDEOS, VOICE, render, voice
 
 TOKEN = secrets.token_urlsafe(24)  # other websites open in the browser can't reach the app without it
 PAGE = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 MAX_UPLOAD = 1024**3
+PREVIEW = "Here's a quick preview of how your demo will sound. Every line is spoken in this voice."
 job = {"state": "idle"}
 
 
@@ -42,11 +43,11 @@ def reveal(path):
         subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
 
 
-def save_voice(audio):
+def save_recording(audio, tone):
     import soundfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        recording, converted = Path(tmp) / "recording", Path(tmp) / "sample.wav"
+        recording, converted = Path(tmp) / "recording", Path(tmp) / "take.wav"
         recording.write_bytes(audio)
         try:
             render.ffmpeg("-i", str(recording), "-vn", "-ac", "1", "-ar", "44100", str(converted))
@@ -54,9 +55,8 @@ def save_voice(audio):
             return "That file doesn't look like an audio recording."
         if soundfile.info(converted).duration < 8:
             return "That recording is too short. Speak for 10 to 20 seconds."
-        SAMPLE.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(converted, SAMPLE)
-    voice.forget()
+        VOICE.mkdir(parents=True, exist_ok=True)
+        shutil.move(converted, voice.take(tone))
 
 
 def import_demo(data, name):
@@ -79,15 +79,22 @@ def import_demo(data, name):
         shutil.move(manifest.parent, target)
 
 
-def create(demo_id):
+def run_job(kind, work):
+    """One job at a time (a video or a preview); the page polls /api/state for its steps."""
+    job.clear()
+    job.update(state="working", kind=kind, step="Starting")
+
     def step(text):
         job["step"] = text
 
-    try:
-        job["video"] = str(render.render(DEMOS / demo_id, sample=SAMPLE, on_step=step))
-        job["state"] = "done"
-    except Exception as error:  # shown to the person in the page
-        job.update(state="error", error=str(error))
+    def target():
+        try:
+            job["result"] = str(work(step))
+            job["state"] = "done"
+        except Exception as error:  # shown to the person in the page
+            job.update(state="error", error=str(error))
+
+    threading.Thread(target=target, daemon=True).start()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -109,13 +116,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        path, _ = self.route()
+        path, query = self.route()
+        tone = query.get("tone", ["main"])[0]
         if path == "/":
             self.reply(200, PAGE.replace("__TOKEN__", TOKEN), "text/html; charset=utf-8")
         elif path == "/api/state":
-            self.reply(200, {"voice": SAMPLE.exists(), "demos": demos(), "job": job})
-        elif path == "/api/voice" and SAMPLE.exists():
-            self.reply(200, SAMPLE.read_bytes(), "audio/wav")
+            tones = [{"id": t, **info, "recorded": voice.take(t).exists()} for t, info in voice.TONES.items()]
+            self.reply(200, {"voice": SAMPLE.exists(), "tone": voice.saved_tone(), "tones": tones, "demos": demos(), "job": job})
+        elif path == "/api/voice" and tone in voice.TONES and voice.take(tone).exists():
+            self.reply(200, voice.take(tone).read_bytes(), "audio/wav")
+        elif path == "/api/preview" and job.get("kind") == "preview" and job.get("state") == "done":
+            self.reply(200, Path(job["result"]).read_bytes(), "audio/wav")
         else:
             self.reply(403 if path is None else 404, "Open Demo Studio from the link it printed when it started.", "text/plain")
 
@@ -125,28 +136,33 @@ class Handler(BaseHTTPRequestHandler):
         if path is None or size > MAX_UPLOAD:
             return self.reply(403 if path is None else 413)
         body = self.rfile.read(size)
+        tone = query.get("tone", ["main"])[0]
         error = None
-        if path == "/api/voice":
-            error = save_voice(body)
+        if tone not in voice.TONES:
+            error = "Unknown tone."
+        elif path == "/api/voice":
+            error = save_recording(body, tone)
         elif path == "/api/voice/delete":
-            SAMPLE.unlink(missing_ok=True)
-            voice.forget()
+            voice.forget(tone if query.get("tone") else None)
+        elif path == "/api/tone":
+            voice.save_tone(tone)
         elif path == "/api/demos":
             error = import_demo(body, query.get("name", ["Demo"])[0])
-        elif path == "/api/create":
+        elif path in ("/api/preview", "/api/create"):
             demo_id = json.loads(body or b"{}").get("demo", "")
+            chosen = voice.saved_tone()
             if job.get("state") == "working":
-                error = "A video is already being made."
+                error = "Demo Studio is still busy with the last request."
             elif not SAMPLE.exists():
                 error = "Record your voice first."
+            elif path == "/api/preview":
+                run_job("preview", lambda step: voice.speak({"preview": PREVIEW}, chosen, step)["preview"]["file"])
             elif demo_id not in {d["id"] for d in demos()}:
                 error = "Choose a demo first."
             else:
-                job.clear()
-                job.update(state="working", step="Starting", demo=demo_id)
-                threading.Thread(target=create, args=(demo_id,), daemon=True).start()
-        elif path == "/api/open" and job.get("video"):
-            video = Path(job["video"])
+                run_job("video", lambda step: render.render(DEMOS / demo_id, tone=chosen, on_step=step))
+        elif path == "/api/open" and job.get("kind") == "video" and job.get("state") == "done":
+            video = Path(job["result"])
             reveal(video if query.get("what") == ["video"] else video.parent)
         else:
             return self.reply(404)
@@ -154,7 +170,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def serve():
-    for folder in (DEMOS, VIDEOS, SAMPLE.parent):
+    for folder in (DEMOS, VIDEOS, VOICE):
         folder.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     url = f"http://127.0.0.1:{server.server_port}/?t={TOKEN}"

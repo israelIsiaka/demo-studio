@@ -29,10 +29,10 @@ def ffmpeg(*args):
         raise RuntimeError(f"ffmpeg failed: {result.stderr[-2000:]}")
 
 
-def render(package, out=None, sample=None, on_step=print):
+def render(package, out=None, tone=voice.DEFAULT_TONE, on_step=print):
     package = Path(package)
     demo = json.loads((package / "demo.json").read_text(encoding="utf-8"))
-    clips = voice.speak(demo["lines"], sample, on_step)
+    clips = voice.speak(demo["lines"], tone, on_step)
     on_step("Mixing the soundtrack")
     total = float(demo["duration"])
     if out is None:
