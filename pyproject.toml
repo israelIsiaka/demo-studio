@@ -8,6 +8,8 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
   "chatterbox-tts==0.1.7",
   "imageio-ffmpeg>=0.5",
+  # resemble-perth (Chatterbox's watermark) still imports pkg_resources, which newer setuptools dropped.
+  "setuptools<81",
 ]
 
 [project.scripts]
