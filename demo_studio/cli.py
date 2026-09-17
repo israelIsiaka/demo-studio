@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -22,15 +23,20 @@ def main():
     sample = SAMPLE if SAMPLE.exists() else None
     if args.command and not sample:
         log("No voice recorded yet, so the built-in voice is used. Run `demo-studio` to record yours.")
+    # stdout carries only the result (the kit parses it); libraries that print go to stderr.
     if args.command == "speak":
         from . import voice
 
         lines = json.loads(Path(args.lines).read_text(encoding="utf-8") if args.lines else sys.stdin.read())
-        print(json.dumps(voice.speak(lines, sample, log)))
+        with contextlib.redirect_stdout(sys.stderr):
+            result = json.dumps(voice.speak(lines, sample, log))
+        print(result)
     elif args.command == "render":
         from . import render as renderer
 
-        print(renderer.render(args.package, args.out, sample, log))
+        with contextlib.redirect_stdout(sys.stderr):
+            result = renderer.render(args.package, args.out, sample, log)
+        print(result)
     else:
         from . import app
 
