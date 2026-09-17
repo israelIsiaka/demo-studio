@@ -1,0 +1,10 @@
+{
+  "name": "demo-studio",
+  "displayName": "Demo Studio",
+  "version": "0.1.0",
+  "description": "Make narrated product demo videos of your web app in your own voice, generated on your own computer.",
+  "author": { "name": "Israel Isiaka" },
+  "repository": "https://github.com/israelIsiaka/demo-studio",
+  "license": "MIT",
+  "keywords": ["demo", "video", "voice", "narration", "playwright"]
+}

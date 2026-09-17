@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Studio</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #16191d; --muted: #5d6670; --line: #dde1e6;
+    --accent: #2c6fd1; --accent-text: #fff; --danger: #c23a32; --ok: #1d7a46;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111418; --card: #1a1e24; --text: #eef1f4; --muted: #9aa4ae; --line: #2c333b; --accent: #5b9bf0; --accent-text: #0b1320; --danger: #f07b72; --ok: #5cc98a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: 28px; margin: 0; }
+  .lede { color: var(--muted); margin: 4px 0 28px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  h2 { font-size: 17px; margin: 0 0 12px; display: flex; gap: 10px; align-items: center; }
+  h2 .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: 14px; display: grid; place-items: center; flex: none; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .passage { border-left: 3px solid var(--accent); padding: 8px 14px; margin: 0 0 14px; font-size: 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button, .file { font: inherit; font-size: 15px; border-radius: 8px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, .file:focus-within, label.demo:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .file input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .rec { color: var(--danger); font-weight: 600; font-variant-numeric: tabular-nums; }
+  audio { width: 100%; margin-bottom: 12px; }
+  label.demo { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+  label.demo:has(input:checked) { border-color: var(--accent); }
+  label.demo input { margin-top: 5px; accent-color: var(--accent); }
+  details { margin-top: 4px; font-size: 14px; color: var(--muted); }
+  details ol { margin: 6px 0 0; padding-left: 20px; }
+  .error { color: var(--danger); font-size: 14px; margin: 10px 0 0; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Demo Studio</h1>
+  <p class="lede">Put your voice on product demo videos. Your voice and videos never leave this computer.</p>
+
+  <section aria-labelledby="voice-h">
+    <h2 id="voice-h"><span class="n">1</span>Your voice</h2>
+    <div id="voice-none">
+      <p>Find a quiet spot. Press <strong>Record</strong> and read this aloud in the tone you want for your demos:</p>
+      <p class="passage">Hi, let me show you how this works. Setting up takes about a minute, and once you're in, everything you need is right here on one screen. Let's take a look.</p>
+      <div class="row">
+        <button class="primary" id="record">Record</button>
+        <span class="rec" id="timer" hidden></span>
+        <label class="file">Or choose a recording<input type="file" id="voice-file" accept="audio/*,video/*"></label>
+      </div>
+    </div>
+    <div id="voice-saved" hidden>
+      <p class="ok">Your voice is saved on this computer.</p>
+      <audio id="voice-audio" controls preload="none"></audio>
+      <div class="row">
+        <button id="again">Record again</button>
+        <button class="danger" id="forget">Delete my voice</button>
+      </div>
+    </div>
+    <p class="error" id="voice-error" role="alert" hidden></p>
+  </section>
+
+  <section aria-labelledby="demo-h">
+    <h2 id="demo-h"><span class="n">2</span>Choose a demo</h2>
+    <div id="demos"></div>
+    <p class="muted" id="no-demos" hidden>No demos yet. Add a demo package (.zip) someone sent you, or make one with the Demo Studio plugin for Claude Code.</p>
+    <label class="file">Add a demo (.zip)<input type="file" id="demo-file" accept=".zip"></label>
+    <p class="error" id="demo-error" role="alert" hidden></p>
+  </section>
+
+  <section aria-labelledby="create-h">
+    <h2 id="create-h"><span class="n">3</span>Create your video</h2>
+    <button class="primary" id="create" disabled>Create video</button>
+    <div class="row" id="working" hidden><span class="spinner" aria-hidden="true"></span><span id="step" aria-live="polite"></span></div>
+    <div id="done" hidden>
+      <p class="ok">Your video is ready.</p>
+      <div class="row"><button class="primary" id="play">Play video</button><button id="show">Show in folder</button></div>
+    </div>
+    <p class="muted" id="first-run">The first video takes longer: Demo Studio downloads its voice model (about 3 GB) once.</p>
+    <p class="error" id="create-error" role="alert" hidden></p>
+  </section>
+</main>
+<script>
+const T = '__TOKEN__';
+const $ = (id) => document.getElementById(id);
+const api = (path, params = {}) => `${path}?${new URLSearchParams({ t: T, ...params })}`;
+let state = { voice: false, demos: [], job: {} };
+let chosen = null;
+
+function showError(id, message) {
+  $(id).textContent = message || '';
+  $(id).hidden = !message;
+}
+
+async function post(path, body, params, errorId) {
+  showError(errorId);
+  const response = await fetch(api(path, params), { method: 'POST', body });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) showError(errorId, result.error || 'Something went wrong. Try again.');
+  await refresh();
+  return response.ok;
+}
+
+async function refresh() {
+  state = await (await fetch(api('/api/state'))).json();
+  $('voice-none').hidden = state.voice;
+  $('voice-saved').hidden = !state.voice;
+  if (state.voice && !$('voice-audio').src) $('voice-audio').src = api('/api/voice', { v: Date.now() });
+
+  const list = $('demos');
+  const ids = state.demos.map((d) => d.id).join('\n');
+  if (list.dataset.ids !== ids) {
+    list.dataset.ids = ids;
+    list.replaceChildren(...state.demos.map((demo) => {
+      const label = document.createElement('label');
+      label.className = 'demo';
+      const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'demo', value: demo.id, checked: demo.id === chosen });
+      radio.onchange = () => { chosen = demo.id; render(); };
+      const text = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = demo.title;
+      const meta = Object.assign(document.createElement('div'), { className: 'muted', textContent: `${Math.round(demo.duration)} seconds · ${demo.lines.length} lines` });
+      const details = document.createElement('details');
+      details.append(Object.assign(document.createElement('summary'), { textContent: 'What the narrator says' }));
+      const ol = document.createElement('ol');
+      ol.append(...demo.lines.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
+      details.append(ol);
+      text.append(title, meta, details);
+      label.append(radio, text);
+      return label;
+    }));
+  }
+  if (!state.demos.some((d) => d.id === chosen)) chosen = state.demos.length === 1 ? state.demos[0].id : null;
+  list.querySelectorAll('input').forEach((radio) => (radio.checked = radio.value === chosen));
+  $('no-demos').hidden = state.demos.length > 0;
+  render();
+}
+
+function render() {
+  const job = state.job;
+  const working = job.state === 'working';
+  $('create').disabled = !state.voice || !chosen || working;
+  $('working').hidden = !working;
+  $('step').textContent = job.step || '';
+  $('done').hidden = job.state !== 'done';
+  $('first-run').hidden = job.state === 'done';
+  showError('create-error', job.state === 'error' ? `The video couldn't be made: ${job.error}` : '');
+  if (working) setTimeout(refresh, 1000);
+}
+
+// Recording: 10 to 20 seconds from the microphone, then saved on this computer.
+let recorder = null;
+$('record').onclick = async () => {
+  if (recorder) return recorder.stop();
+  showError('voice-error');
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
+  } catch {
+    return showError('voice-error', 'Demo Studio needs microphone access. Allow it in your browser, or choose a recording instead.');
+  }
+  const chunks = [];
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  const started = Date.now();
+  const tick = setInterval(() => {
+    const s = Math.floor((Date.now() - started) / 1000);
+    $('timer').textContent = `Recording ${s}s${s < 10 ? ' (keep going)' : ''}`;
+    $('record').disabled = s < 10;
+    if (s >= 20) recorder.stop();
+  }, 250);
+  recorder.onstop = async () => {
+    clearInterval(tick);
+    stream.getTracks().forEach((track) => track.stop());
+    recorder = null;
+    Object.assign($('record'), { textContent: 'Record', disabled: false });
+    $('timer').hidden = true;
+    $('voice-audio').removeAttribute('src');
+    await post('/api/voice', new Blob(chunks), {}, 'voice-error');
+  };
+  recorder.start();
+  Object.assign($('record'), { textContent: 'Stop', disabled: true });
+  Object.assign($('timer'), { hidden: false, textContent: 'Recording 0s (keep going)' });
+};
+$('voice-file').onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  $('voice-audio').removeAttribute('src');
+  await post('/api/voice', file, {}, 'voice-error');
+};
+$('again').onclick = () => { $('voice-none').hidden = false; $('voice-saved').hidden = true; };
+$('forget').onclick = async () => {
+  if (!confirm('Delete your voice recording and every line voiced with it?')) return;
+  $('voice-audio').removeAttribute('src');
+  await post('/api/voice/delete', null, {}, 'voice-error');
+};
+
+$('demo-file').onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (await post('/api/demos', file, { name: file.name.replace(/\.zip$/i, '') }, 'demo-error') && !chosen) {
+    chosen = state.demos.at(-1)?.id ?? null;
+    render();
+  }
+};
+
+$('create').onclick = () => post('/api/create', JSON.stringify({ demo: chosen }), {}, 'create-error');
+$('play').onclick = () => fetch(api('/api/open', { what: 'video' }), { method: 'POST' });
+$('show').onclick = () => fetch(api('/api/open', { what: 'folder' }), { method: 'POST' });
+
+if (!window.MediaRecorder) $('record').hidden = true;
+refresh();
+</script>
+</body>
+</html>

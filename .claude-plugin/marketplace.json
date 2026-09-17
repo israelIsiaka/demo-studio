@@ -1,0 +1,11 @@
+{
+  "name": "demo-studio",
+  "owner": { "name": "Israel Isiaka" },
+  "plugins": [
+    {
+      "name": "demo-studio",
+      "source": "./",
+      "description": "Make narrated product demo videos of your web app in your own voice, generated on your own computer."
+    }
+  ]
+}
