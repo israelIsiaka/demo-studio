@@ -1,8 +1,7 @@
 name: check
 
+# Manual only: macOS minutes count 10x on private repos. Run it from the Actions tab or `gh workflow run check`.
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 jobs:
