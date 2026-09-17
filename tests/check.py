@@ -13,6 +13,7 @@ import urllib.request
 import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlencode
 
 home = Path(tempfile.mkdtemp(prefix="demo-studio-check-"))
 os.environ["DEMO_STUDIO_HOME"] = str(home / "Demo Studio")
@@ -27,7 +28,7 @@ base = f"http://127.0.0.1:{server.server_port}"
 
 
 def call(path, body=None, token=app.TOKEN, host=None, **params):
-    query = "&".join(f"{k}={v}" for k, v in {"t": token, **params}.items())
+    query = urlencode({"t": token, **params})
     request = urllib.request.Request(f"{base}{path}?{query}", data=body, method="POST" if body is not None else "GET")
     if host:
         request.add_header("Host", host)
@@ -65,7 +66,10 @@ assert call("/api/voice", b"not audio")[0] == 400
 speech = voice.speak({"sample": "Hi, let me show you how this works. Setting up takes about a minute, and once you're in, "
                                 "everything you need is right here on one screen. Let's take a look together."}, None)["sample"]
 print(f"ok  built-in voice ({speech['seconds']:.1f} s)")
-assert call("/api/voice", Path(speech["file"]).read_bytes())[0] == 200 and SAMPLE.exists()
+recording = home / "recording.wav"  # played twice, so it clears the 8 s minimum whatever the take's length
+render.ffmpeg("-stream_loop", "1", "-i", speech["file"], str(recording))
+status, reply = call("/api/voice", recording.read_bytes())
+assert status == 200 and SAMPLE.exists(), reply
 print("ok  voice upload")
 
 # Import: a zip whose entries try to escape the demos folder stays inside it.
