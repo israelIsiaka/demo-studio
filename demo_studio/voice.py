@@ -25,15 +25,17 @@ def load(on_step=print):
     if _model is None:
         import torch
         from chatterbox.tts import REPO_ID, ChatterboxTTS
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import hf_hub_download, try_to_load_from_cache
 
         # ponytail: Windows gets the CPU unless a CUDA build of torch is installed; slow but works.
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-        try:
-            _model = ChatterboxTTS.from_local(snapshot_download(REPO_ID, local_files_only=True), device)
-        except Exception:
+        files = ["ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json", "conds.pt"]
+        cached = {f: try_to_load_from_cache(REPO_ID, f) for f in files}  # no network call
+        if not all(isinstance(path, str) for path in cached.values()):
             on_step("Downloading the voice model (first time only, about 3 GB)")
-            _model = ChatterboxTTS.from_pretrained(device)
+            cached = {f: hf_hub_download(REPO_ID, f) for f in files}
+        on_step("Loading the voice model")
+        _model = ChatterboxTTS.from_local(Path(cached["conds.pt"]).parent, device)
         _builtin = _model.conds
     return _model
 

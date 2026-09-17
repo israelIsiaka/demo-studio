@@ -20,7 +20,7 @@ from . import VIDEOS, voice
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 # ponytail: a line longer than its slot is sped up, at most this much; past that it runs into the pause after it.
 MAX_TEMPO = 1.25
-VOICE_GAIN, MUSIC_GAIN, FX_GAIN = 1.0, 0.3, 0.55
+VOICE_GAIN, MUSIC_GAIN, FX_GAIN = 2.3, 0.3, 0.55  # voices arrive at -20 LUFS
 
 
 def ffmpeg(*args):
