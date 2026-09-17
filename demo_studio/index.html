@@ -14,6 +14,7 @@
     :root { --bg: #111418; --card: #1a1e24; --text: #eef1f4; --muted: #9aa4ae; --line: #2c333b; --accent: #5b9bf0; --accent-text: #0b1320; --danger: #f07b72; --ok: #5cc98a; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   main { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
   h1 { font-size: 28px; margin: 0; }
@@ -36,6 +37,7 @@
   label.demo { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
   label.demo:has(input:checked) { border-color: var(--accent); }
   label.demo input { margin-top: 5px; accent-color: var(--accent); }
+  #working, #done, #first-run { margin-top: 12px; }
   details { margin-top: 4px; font-size: 14px; color: var(--muted); }
   details ol { margin: 6px 0 0; padding-left: 20px; }
   .error { color: var(--danger); font-size: 14px; margin: 10px 0 0; }
