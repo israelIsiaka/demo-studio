@@ -8,16 +8,34 @@ A demo package is a folder with:
   *.wav       the sound effects the cues name
 """
 import json
+import os
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
-import imageio_ffmpeg
+from . import BIN, VIDEOS, voice
 
-from . import VIDEOS, voice
 
-FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+def _ffmpeg_exe():
+    """The FFmpeg to run, most deliberate choice first.
+
+    Ours if it is there (LGPL only - see BIN), otherwise imageio-ffmpeg's,
+    which is a GPL build: perfectly fine on a developer's own machine, and the
+    reason a stock install cannot simply be copied into an installer.
+    """
+    override = os.environ.get("DEMO_STUDIO_FFMPEG")
+    if override:
+        return override
+    ours = BIN / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+    if ours.exists():
+        return str(ours)
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+FFMPEG = _ffmpeg_exe()
 # ponytail: a line longer than its slot is sped up, at most this much; past that it runs into the pause after it.
 MAX_TEMPO = 1.25
 VOICE_GAIN, MUSIC_GAIN, FX_GAIN = 2.3, 0.3, 0.55  # voices arrive at -20 LUFS

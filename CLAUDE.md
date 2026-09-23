@@ -24,6 +24,7 @@ demo_studio/index.html    the whole UI: monochrome black and white, follows syst
 demo_studio/cli.py        `demo-studio` (app), `demo-studio speak`, `demo-studio render <package>` (both take `--tone`)
 kit/studio.mjs            recording kit used by demo scripts (calls the Python CLI via `uv run --project`)
 kit/sound.mjs             synthesised music bed and effects
+tools/build-ffmpeg.sh     the LGPL-only FFmpeg the app ships (.github/workflows/ffmpeg.yml builds it for mac + windows)
 kit/examples/             minimal.mjs (one scene; also CI) and tinc.mjs (full demo of the owner's TInC Virtual Quiz app)
 skills/demo-video/        what Claude follows when a user asks the plugin for a demo
 tests/check.py            the end-to-end check (access control, voice and tone takes, preview, zip import, real render)
@@ -50,6 +51,8 @@ uv run demo-studio render "<package>"    # re-mix a package; cached clips make t
 - **Python app + uv**: users install one tool (uv) and run one `uvx` line; uv fetches Python 3.11 and torch. No Electron, no bundled installers.
 - **Model load is cache-first** (`local_files_only`, falling back to a download only on `LocalEntryNotFoundError`): no network once downloaded.
 - **Mix levels** (`VOICE_GAIN 2.3`): clips are normalised to -20 LUFS, tuned so a render matches the original TInC video (about -14 LUFS overall, speech about 10 dB over the music gaps).
+
+- **We build our own FFmpeg** (`tools/build-ffmpeg.sh`). imageio-ffmpeg ships `--enable-gpl --enable-libx264`, and the kit's npm `ffmpeg-static` adds `--enable-nonfree`, which FFmpeg says may not be redistributed at all - fine to run locally, impossible to put in an installer. The app never re-encodes video (`-c:v copy`) and only encodes AAC, so it needs nothing GPL: the build is `--disable-gpl --disable-nonfree` with just the filters in `render.py`, 14 MB, and the script refuses to finish if any of those flags reappear. Decoders stay broad because the voice page accepts uploaded recordings. `render.py` takes `$DEMO_STUDIO_FFMPEG` if set, then `~/Demo Studio/bin/ffmpeg`, then imageio-ffmpeg.
 
 ## Known state (2026-09-17)
 
