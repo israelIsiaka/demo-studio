@@ -50,7 +50,9 @@ jobs:
           Get-ChildItem dist
 
       # The real check: install it the way a user would, silently, then start
-      # the app and see whether it answers.
+      # the app and see whether it answers. The app gates every request on a
+      # one-time token and prints its address with that token on stdout, so the
+      # test has to read the address rather than guess the port.
       - name: install it and start the app
         shell: pwsh
         run: |
@@ -59,23 +61,31 @@ jobs:
           $app = "$env:LOCALAPPDATA\Programs\Demo Studio"
           if (-not (Test-Path "$app\.venv")) { throw "install did not build the Python environment" }
           if (-not (Test-Path "$env:USERPROFILE\Demo Studio\bin\ffmpeg.exe")) { throw "ffmpeg was not put where render.py looks" }
-          # Launch exactly as the desktop icon does.
-          Start-Process wscript.exe -ArgumentList "`"$app\launch.vbs`""
-          $ok = $false
-          foreach ($i in 1..60) {
-            Start-Sleep -Seconds 5
-            $port = (Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
-                     Where-Object { $_.LocalAddress -eq "127.0.0.1" -and $_.OwningProcess -ne 0 }).LocalPort
-            foreach ($p in $port) {
-              try {
-                $r = Invoke-WebRequest "http://127.0.0.1:$p/" -TimeoutSec 3 -UseBasicParsing
-                if ($r.Content -match "Demo Studio") { $ok = $true; break }
-              } catch { }
+          if (-not (Test-Path "$app\launch.vbs")) { throw "the launcher is missing" }
+
+          $out = "$env:TEMP\ds-out.txt"
+          $err = "$env:TEMP\ds-err.txt"
+          $proc = Start-Process -FilePath "$app\tools\uv.exe" -ArgumentList "run","--no-dev","demo-studio" `
+                    -WorkingDirectory $app -RedirectStandardOutput $out -RedirectStandardError $err `
+                    -PassThru -WindowStyle Hidden
+          $url = $null
+          foreach ($i in 1..90) {
+            Start-Sleep -Seconds 2
+            if (Test-Path $out) {
+              $text = Get-Content $out -Raw -ErrorAction SilentlyContinue
+              if ($text -match "http://127\.0\.0\.1:\d+/\?t=[\w\-]+") { $url = $Matches[0]; break }
             }
-            if ($ok) { break }
+            if ($proc.HasExited) { break }
           }
-          if (-not $ok) { throw "the app never answered after install" }
-          Write-Host "installed, launched, and serving"
+          if (-not $url) {
+            Write-Host "--- stdout ---"; Get-Content $out -ErrorAction SilentlyContinue
+            Write-Host "--- stderr ---"; Get-Content $err -ErrorAction SilentlyContinue
+            throw "the app never printed its address"
+          }
+          $r = Invoke-WebRequest $url -TimeoutSec 15 -UseBasicParsing
+          if ($r.Content -notmatch "Demo Studio") { throw "the app answered but did not serve its page" }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          Write-Host "installed, launched, and serving at $($url -replace '\?t=.*', '?t=<hidden>')"
 
       - name: publish
         shell: bash
