@@ -26,6 +26,8 @@ jobs:
           - { os: macos-13, name: macos-x64 }
           - { os: windows-latest, name: windows-x64 }
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -51,8 +53,31 @@ jobs:
         shell: msys2 {0}
         run: ./tools/build-ffmpeg.sh "${{ inputs.version }}" "$PWD/out"
 
+      # A release, not just an artifact: artifacts count against an
+      # account-wide storage quota (which these builds have filled before) and
+      # expire, while the installer needs a stable URL to fetch the binary from.
+      - name: publish to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="ffmpeg-${{ inputs.version }}"
+          ext=""
+          [ "${{ runner.os }}" = "Windows" ] && ext=".exe"
+          cp "out/bin/ffmpeg$ext" "ffmpeg-${{ matrix.name }}$ext"
+          # Three jobs race to create the same release; whoever loses just uploads.
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --title "FFmpeg ${{ inputs.version }} (LGPL build)" \
+                 --notes "Built by tools/build-ffmpeg.sh: --disable-gpl --disable-nonfree, only the pieces Demo Studio uses." \
+            || true
+          gh release upload "$tag" "ffmpeg-${{ matrix.name }}$ext" --clobber
+
+      # Kept as a convenience for a quick download, but expiring, so these can
+      # never pile up into a full quota again.
       - uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.name }}
           path: out/bin/ffmpeg*
           if-no-files-found: error
+          retention-days: 7
