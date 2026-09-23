@@ -74,8 +74,12 @@ jobs:
           gh release upload "$tag" "ffmpeg-${{ matrix.name }}$ext" --clobber
 
       # Kept as a convenience for a quick download, but expiring, so these can
-      # never pile up into a full quota again.
-      - uses: actions/upload-artifact@v4
+      # never pile up into a full quota again - and never fatal: the release
+      # above is the real destination, and the artifact quota is account-wide,
+      # so another repo filling it must not fail a build that worked. It also
+      # takes GitHub 6 to 12 hours to notice freed space.
+      - continue-on-error: true
+        uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.name }}
           path: out/bin/ffmpeg*
