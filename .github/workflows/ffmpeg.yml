@@ -1,0 +1,58 @@
+# Builds the FFmpeg Demo Studio ships, for every platform it runs on.
+#
+# Why we build it ourselves: imageio-ffmpeg's binary is --enable-gpl
+# --enable-libx264, and the npm one the kit uses adds --enable-nonfree, which
+# FFmpeg says may not be redistributed at all. Either is fine to run on your own
+# machine; neither can go inside an installer. The app only copies the video
+# stream and encodes audio, so it needs nothing GPL - see tools/build-ffmpeg.sh.
+#
+# Run manually, then attach the artifacts to a release.
+name: ffmpeg
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: FFmpeg version to build
+        default: "7.1.1"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, name: macos-arm64 }
+          - { os: macos-13, name: macos-x64 }
+          - { os: windows-latest, name: windows-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # x86 builds need nasm for the assembly; arm64 macOS does not.
+      - if: matrix.name == 'macos-x64'
+        run: brew install nasm
+
+      - if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-nasm
+            make diffutils tar xz curl
+
+      - if: runner.os != 'Windows'
+        run: ./tools/build-ffmpeg.sh "${{ inputs.version }}" "$PWD/out"
+
+      - if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: ./tools/build-ffmpeg.sh "${{ inputs.version }}" "$PWD/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.name }}
+          path: out/bin/ffmpeg*
+          if-no-files-found: error
