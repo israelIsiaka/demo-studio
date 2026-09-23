@@ -1,0 +1,90 @@
+# Builds DemoStudio-Setup.exe and then proves it works by installing it and
+# launching the app, because an installer that has never been run is a guess.
+name: installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_tag:
+        description: Release tag holding the LGPL ffmpeg build
+        default: "ffmpeg-7.1.1"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # uv fetches Python and the libraries on the user's machine; shipping it
+      # is what keeps the installer small.
+      - name: fetch uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o uv.zip https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip
+          unzip -j uv.zip uv.exe -d installer/
+          installer/uv.exe --version
+
+      - name: fetch our LGPL ffmpeg
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "${{ inputs.ffmpeg_tag }}" -p "ffmpeg-windows-x64.exe" -O installer/ffmpeg.exe
+          # Refuse to ship a binary carrying GPL or nonfree code - the whole
+          # reason we build our own.
+          conf=$(installer/ffmpeg.exe -version | grep -o 'configuration:.*')
+          for bad in enable-gpl enable-nonfree enable-libx264; do
+            case "$conf" in *"--$bad"*) echo "REFUSING: ffmpeg has --$bad"; exit 1;; esac
+          done
+          echo "ffmpeg is LGPL only"
+
+      - name: build the installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\DemoStudio.iss /O"${{ github.workspace }}\dist"
+          Get-ChildItem dist
+
+      # The real check: install it the way a user would, silently, then start
+      # the app and see whether it answers.
+      - name: install it and start the app
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\DemoStudio-Setup.exe
+          Start-Process -Wait -FilePath $setup.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
+          $app = "$env:LOCALAPPDATA\Programs\Demo Studio"
+          if (-not (Test-Path "$app\.venv")) { throw "install did not build the Python environment" }
+          if (-not (Test-Path "$env:USERPROFILE\Demo Studio\bin\ffmpeg.exe")) { throw "ffmpeg was not put where render.py looks" }
+          # Launch exactly as the desktop icon does.
+          Start-Process wscript.exe -ArgumentList "`"$app\launch.vbs`""
+          $ok = $false
+          foreach ($i in 1..60) {
+            Start-Sleep -Seconds 5
+            $port = (Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
+                     Where-Object { $_.LocalAddress -eq "127.0.0.1" -and $_.OwningProcess -ne 0 }).LocalPort
+            foreach ($p in $port) {
+              try {
+                $r = Invoke-WebRequest "http://127.0.0.1:$p/" -TimeoutSec 3 -UseBasicParsing
+                if ($r.Content -match "Demo Studio") { $ok = $true; break }
+              } catch { }
+            }
+            if ($ok) { break }
+          }
+          if (-not $ok) { throw "the app never answered after install" }
+          Write-Host "installed, launched, and serving"
+
+      - name: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="app-v$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2 || echo 0.1.0)"
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --title "Demo Studio $tag" --notes "Windows installer. Double-click and follow it; everything else is automatic." \
+            || true
+          gh release upload "$tag" dist/DemoStudio-Setup.exe --clobber
