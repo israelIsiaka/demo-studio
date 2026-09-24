@@ -22,9 +22,19 @@ cd "$WORK/ffmpeg-$VERSION"
 # recorder writes. Decoders and demuxers stay broad on purpose - people upload
 # whatever their phone recorded.
 # Filters: exactly the chain in render.py, plus the resamplers FFmpeg inserts.
+# On Windows the compiler is mingw, which links against its own runtime DLLs
+# (libwinpthread-1.dll and friends). Those exist on a build machine and on a CI
+# runner - GitHub's Windows image ships MSYS2 - and on nobody else's computer,
+# where the binary then refuses to start at all. Link them in.
+EXTRA=()
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) EXTRA+=(--extra-ldflags="-static -static-libgcc -static-libstdc++") ;;
+esac
+
 echo "==> configure"
 ./configure \
   --prefix="$OUT" \
+  "${EXTRA[@]+"${EXTRA[@]}"}" \
   --disable-gpl --disable-nonfree --disable-version3 \
   --disable-doc --disable-debug --disable-network --disable-autodetect \
   --disable-programs --enable-ffmpeg \
@@ -51,4 +61,17 @@ for forbidden in enable-gpl enable-nonfree enable-libx264; do
   case "$CONF" in *"--$forbidden"*) echo "REFUSING: build contains --$forbidden"; exit 1;; esac
 done
 echo "    licence: LGPL only (no --enable-gpl, --enable-nonfree, --enable-libx264)"
+
+# And that it can actually run on a machine that is not this one. A mingw build
+# that quietly depends on libwinpthread-1.dll works everywhere it is built and
+# nowhere it is sent, which is exactly the kind of failure a user sees first.
+if command -v objdump >/dev/null 2>&1; then
+  for dll in $(objdump -p "$BIN" 2>/dev/null | awk '/DLL Name:/ {print tolower($3)}' | sort -u); do
+    case "$dll" in
+      libwinpthread*|libgcc*|libstdc*|*msys*|libiconv*|libz*)
+        echo "REFUSING: needs $dll, which will not be on a user's computer"; exit 1;;
+    esac
+  done
+  echo "    links: self-contained (no mingw runtime DLLs)"
+fi
 echo "    at: $BIN"

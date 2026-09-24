@@ -41,6 +41,16 @@ jobs:
             case "$conf" in *"--$bad"*) echo "REFUSING: ffmpeg has --$bad"; exit 1;; esac
           done
           echo "ffmpeg is LGPL only"
+          # And that it runs on a clean machine. This runner has MSYS2 on it, so
+          # a binary needing libwinpthread-1.dll starts here and fails on a real
+          # user's desktop - which is exactly what shipped the first time.
+          for dll in $(objdump -p installer/ffmpeg.exe 2>/dev/null | awk '/DLL Name:/ {print tolower($3)}' | sort -u); do
+            case "$dll" in
+              libwinpthread*|libgcc*|libstdc*|*msys*)
+                echo "REFUSING: ffmpeg needs $dll, which a user will not have"; exit 1;;
+            esac
+          done
+          echo "ffmpeg is self-contained"
 
       - name: build the installer
         shell: pwsh
