@@ -1,6 +1,6 @@
 // Demo Studio recording kit. Drives the real app in headless browsers, paces every scene to its narration,
 // lays scenes out on branded frames, and saves a demo package that Demo Studio narrates and mixes into an MP4.
-// See examples/tinc.mjs for a complete demo built with it.
+// See examples/minimal.mjs for a complete demo built with it.
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

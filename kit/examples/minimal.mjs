@@ -1,5 +1,4 @@
-// The smallest complete demo: a title card and one recorded, narrated scene. Start here for a simple app;
-// see tinc.mjs for a big one (seeded data, several pages at once, simulated users). Also the kit's CI check.
+// The smallest complete demo: a title card and one recorded, narrated scene. Also the kit's CI check.
 import { createStudio, sleep, tap } from '../studio.mjs';
 
 const studio = await createStudio({ title: process.env.DEMO_TITLE ?? 'Minimal Demo' });

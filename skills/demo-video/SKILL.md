@@ -7,7 +7,7 @@ description: Make a narrated product demo video of the user's web app in their o
 
 Demo Studio records the real app in headless browsers, paces every scene to its narration, and narrates it in the user's cloned voice. It saves a **demo package** (silent video, music, sound effects, script and timing) and renders the MP4 from it. Anyone can later put their own voice on the same package in the Demo Studio app.
 
-Plugin folder: `${CLAUDE_PLUGIN_ROOT}`. Read `kit/studio.mjs` (the API) and both examples before writing a demo: `kit/examples/minimal.mjs` (one scene) and `kit/examples/tinc.mjs` (a full demo with seeded data, several pages at once and simulated users).
+Plugin folder: `${CLAUDE_PLUGIN_ROOT}`. Read `kit/studio.mjs` (the API) and the example `kit/examples/minimal.mjs` (one scene) before writing a demo.
 
 ## Privacy rules (never break these)
 

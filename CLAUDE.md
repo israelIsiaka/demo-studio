@@ -25,7 +25,7 @@ demo_studio/cli.py        `demo-studio` (app), `demo-studio speak`, `demo-studio
 kit/studio.mjs            recording kit used by demo scripts (calls the Python CLI via `uv run --project`)
 kit/sound.mjs             synthesised music bed and effects
 tools/build-ffmpeg.sh     the LGPL-only FFmpeg the app ships (.github/workflows/ffmpeg.yml builds it for mac + windows)
-kit/examples/             minimal.mjs (one scene; also CI) and tinc.mjs (full demo of the owner's TInC Virtual Quiz app)
+kit/examples/minimal.mjs  one scene; also the kit's CI check (the full TInC demo lives in tinc-virtual-quiz/e2e/demo-video.mjs)
 skills/demo-video/        what Claude follows when a user asks the plugin for a demo
 tests/check.py            the end-to-end check (access control, voice and tone takes, preview, zip import, real render)
 ```
@@ -64,5 +64,4 @@ uv run demo-studio render "<package>"    # re-mix a package; cached clips make t
 - Windows: VoxCPM on CPU speed is unknown; CUDA torch wheels would need the PyTorch index.
 - The owner's current recording has conversation after the passage; a clean re-recording should improve the clone further.
 - Decide public or private before sharing; the README's install line needs a public repo.
-- `kit/examples/tinc.mjs` contains the TInC seed accounts (such as `admin@tinc.test`). Remove or replace it before going public if those are used anywhere real.
 - The plugin flow (`skills/demo-video`) has not been run end to end by a fresh Claude session yet.
