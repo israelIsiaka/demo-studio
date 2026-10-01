@@ -18,6 +18,7 @@ ENGINE = f"{MODEL}/cfg2.0/check-v1"  # part of every clip's cache key: change it
 CFG = 2.0
 SPEECH_LUFS = -20.0
 PROMPT_SECONDS = 15
+DEVICE = os.environ.get("DEMO_STUDIO_DEVICE") or None  # None picks the GPU when there is one; CI's macOS runners need "cpu"
 # ponytail: retake a line whose heard words differ this much from the script; accents make speech-to-text imperfect,
 # so this only catches real failures (missing or invented phrases), not every misheard word.
 MAX_WORD_ERROR, TAKES = 0.25, 3
@@ -78,7 +79,7 @@ def load(on_step=print):
 
         _asr = cached_first(lambda local: WhisperModel(WHISPER, device="cpu", compute_type="int8", local_files_only=local))
         on_step("Loading the voice model")
-        _model = cached_first(lambda local: VoxCPM.from_pretrained(MODEL, load_denoiser=False, optimize=False, local_files_only=local))
+        _model = cached_first(lambda local: VoxCPM.from_pretrained(MODEL, load_denoiser=False, optimize=False, local_files_only=local, device=DEVICE))
     return _model
 
 
