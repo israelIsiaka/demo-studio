@@ -69,6 +69,13 @@ def load(on_step=print):
         from faster_whisper import WhisperModel
         from huggingface_hub.errors import LocalEntryNotFoundError
         from voxcpm import VoxCPM
+        from voxcpm.model import voxcpm as voxcpm_model
+
+        # VoxCPM keeps the checkpoint's bfloat16 on the CPU. Many PCs lack the instructions for it, and Python then
+        # dies with "Illegal instruction" and no message (seen on a GitHub Windows runner, 2026-10-01). float32 runs
+        # on every CPU; Apple GPUs already get it from VoxCPM.
+        pick = voxcpm_model.pick_runtime_dtype
+        voxcpm_model.pick_runtime_dtype = lambda device, dtype: "float32" if device == "cpu" else pick(device, dtype)
 
         def cached_first(make):
             try:
