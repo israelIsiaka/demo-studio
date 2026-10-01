@@ -57,7 +57,7 @@ uv run demo-studio render "<package>"    # re-mix a package; cached clips make t
 ## Known state (2026-09-17)
 
 - The Chatterbox version was verified end to end on the owner's M1 (16 GB). VoxCPM: about 21 to 36 s per line on the M1 before the word check.
-- Windows is untested: CI (`.github/workflows/check.yml`, run manually) covers macos-14 and windows-latest. Windows uses CPU torch; CUDA wheels would need the PyTorch index.
+- Windows (2026-10-01): not yet confirmed on a real PC, but `installer.yml` installs DemoStudio-Setup.exe on a runner with long paths off and a bare PATH, then records, previews and renders with the shipped ffmpeg (an 8 s video in about 80 to 110 s on CPU). It publishes only if that passes. On the CPU, voices run in float32: VoxCPM's bfloat16 crashed one runner with "Illegal instruction". The launcher logs to `demo-studio.log` and the install to `setup.log` in `%LOCALAPPDATA%\Programs\Demo Studio`.
 
 ## Open work
 
