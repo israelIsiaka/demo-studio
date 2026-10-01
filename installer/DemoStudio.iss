@@ -37,6 +37,7 @@ ExtraDiskSpaceRequired=1500000000
 [Files]
 Source: "..\demo_studio\*"; DestDir: "{app}\demo_studio"; Flags: ignoreversion recursesubdirs
 Source: "..\pyproject.toml"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\uv.lock"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "uv.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
@@ -50,7 +51,9 @@ Name: "{userdesktop}\Demo Studio"; Filename: "wscript.exe"; Parameters: """{app}
 [Run]
 ; Build the Python environment now, so the first launch is instant rather than
 ; a ten-minute stare at a blank browser tab.
-Filename: "{app}\tools\uv.exe"; Parameters: "sync --no-dev"; WorkingDir: "{app}"; StatusMsg: "Setting up Python (one time, a few minutes)..."; Flags: runhidden waituntilterminated
+; Exactly the versions in uv.lock; the output is kept in setup.log, since this
+; window is hidden and a failure here otherwise leaves no trace.
+Filename: "{cmd}"; Parameters: "/C """"{app}\tools\uv.exe"" sync --frozen --no-dev > ""{app}\setup.log"" 2>&1"""; WorkingDir: "{app}"; StatusMsg: "Setting up Python (one time, a few minutes)..."; Flags: runhidden waituntilterminated
 ; Our FFmpeg goes where render.py looks for it.
 Filename: "{cmd}"; Parameters: "/C mkdir ""{%USERPROFILE}\Demo Studio\bin"" 2>nul & copy /Y ""{app}\ffmpeg\ffmpeg.exe"" ""{%USERPROFILE}\Demo Studio\bin\ffmpeg.exe"""; Flags: runhidden waituntilterminated
 Filename: "wscript.exe"; Parameters: """{app}\launch.vbs"""; Description: "Open Demo Studio"; Flags: postinstall nowait skipifsilent
@@ -59,3 +62,4 @@ Filename: "wscript.exe"; Parameters: """{app}\launch.vbs"""; Description: "Open 
 ; The environment we built; the user's own voice, demos and videos are left alone
 ; on purpose - they live in "Demo Studio" in the home folder and are theirs.
 Type: filesandordirs; Name: "{app}\.venv"
+Type: files; Name: "{app}\*.log"

@@ -72,10 +72,15 @@ jobs:
           if (-not (Test-Path "$app\.venv")) { throw "install did not build the Python environment" }
           if (-not (Test-Path "$env:USERPROFILE\Demo Studio\bin\ffmpeg.exe")) { throw "ffmpeg was not put where render.py looks" }
           if (-not (Test-Path "$app\launch.vbs")) { throw "the launcher is missing" }
+          # This runner has long paths switched on; a home PC does not, and there
+          # Python cannot open any file whose full path is 260 characters or more.
+          $long = Get-ChildItem -LiteralPath $app -Recurse -File -Force | Sort-Object { $_.FullName.Length } | Select-Object -Last 1
+          Write-Host "longest installed path: $($long.FullName.Length) characters ($($long.FullName))"
+          if ($long.FullName.Length -ge 240) { throw "installed paths come too close to the 260-character limit of a normal Windows PC" }
 
           $out = "$env:TEMP\ds-out.txt"
           $err = "$env:TEMP\ds-err.txt"
-          $proc = Start-Process -FilePath "$app\tools\uv.exe" -ArgumentList "run","--no-dev","demo-studio" `
+          $proc = Start-Process -FilePath "$app\tools\uv.exe" -ArgumentList "run","--frozen","--no-dev","demo-studio" `
                     -WorkingDirectory $app -RedirectStandardOutput $out -RedirectStandardError $err `
                     -PassThru -WindowStyle Hidden
           $url = $null
