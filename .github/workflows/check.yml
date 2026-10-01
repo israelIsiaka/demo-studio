@@ -30,8 +30,8 @@ jobs:
       - name: Install
         run: |
           uv sync
-          npm install --prefix kit
-          npx --prefix kit playwright-core install chromium
+          # cd, not --prefix: on Windows npm looks for package.json in the repo root with --prefix.
+          (cd kit && npm install && npx playwright-core install chromium)
 
       - name: App (access, voice upload, demo import, render)
         run: uv run python tests/check.py
