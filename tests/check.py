@@ -4,6 +4,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import threading
@@ -18,7 +19,18 @@ from urllib.parse import urlencode
 home = Path(tempfile.mkdtemp(prefix="demo-studio-check-"))
 os.environ["DEMO_STUDIO_HOME"] = str(home / "Demo Studio")
 
-from demo_studio import DEMOS, SAMPLE, VIDEOS, app, render, voice  # noqa: E402
+from demo_studio import DEMOS, SAMPLE, VIDEOS, app, voice  # noqa: E402
+
+import imageio_ffmpeg  # noqa: E402
+
+# Test files are made, and the video measured, with a full FFmpeg; the app itself uses whatever render.py picked,
+# which on an installed Windows PC is our LGPL build, and that has none of these test sources or filters.
+TOOL = imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def make(*args):
+    subprocess.run([TOOL, "-y", "-hide_banner", "-loglevel", "error", *args], check=True)
+
 
 for folder in (DEMOS, VIDEOS):
     folder.mkdir(parents=True)
@@ -48,9 +60,9 @@ print("ok  access control")
 # A tiny demo package: 8 s of test video, a music bed, one sound effect, two lines.
 package = home / "package" / "Check Demo"
 package.mkdir(parents=True)
-render.ffmpeg("-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=8", "-pix_fmt", "yuv420p", str(package / "video.mp4"))
-render.ffmpeg("-f", "lavfi", "-i", "sine=frequency=220:duration=9", str(package / "music.wav"))
-render.ffmpeg("-f", "lavfi", "-i", "sine=frequency=880:duration=0.3", str(package / "chime.wav"))
+make("-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=8", "-pix_fmt", "yuv420p", str(package / "video.mp4"))
+make("-f", "lavfi", "-i", "sine=frequency=220:duration=9", str(package / "music.wav"))
+make("-f", "lavfi", "-i", "sine=frequency=880:duration=0.3", str(package / "chime.wav"))
 (package / "demo.json").write_text(json.dumps({
     "title": "Check Demo", "duration": 8,
     "lines": {"one": "Welcome to the check.", "two": "Everything works."},
@@ -59,7 +71,7 @@ render.ffmpeg("-f", "lavfi", "-i", "sine=frequency=880:duration=0.3", str(packag
 
 # Voice: too short is refused; a real 10+ s recording (made with the built-in voice) is kept.
 short = home / "short.wav"
-render.ffmpeg("-f", "lavfi", "-i", "sine=frequency=300:duration=3", str(short))
+make("-f", "lavfi", "-i", "sine=frequency=300:duration=3", str(short))
 status, reply = call("/api/voice", short.read_bytes())
 assert status == 400 and b"too short" in reply, reply
 assert call("/api/voice", b"not audio")[0] == 400
@@ -67,7 +79,7 @@ speech = voice.speak({"sample": "Hi, let me show you how this works. Setting up 
                                 "everything you need is right here on one screen. Let's take a look together."}, "main")["sample"]
 print(f"ok  built-in narrator ({speech['seconds']:.1f} s)")
 recording = home / "recording.wav"  # played twice, so it clears the 8 s minimum whatever the take's length
-render.ffmpeg("-stream_loop", "1", "-i", speech["file"], str(recording))
+make("-stream_loop", "1", "-i", speech["file"], str(recording))
 status, reply = call("/api/voice", recording.read_bytes())
 assert status == 200 and SAMPLE.exists(), reply
 print("ok  voice upload")
@@ -113,7 +125,7 @@ started = time.time()
 job = finished()
 assert job["state"] == "done" and job["kind"] == "video", job
 video = Path(job["result"])
-probe = render.subprocess.run([render.FFMPEG, "-i", str(video), "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True).stderr
+probe = subprocess.run([TOOL, "-i", str(video), "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True).stderr
 duration = re.search(r"Duration: 00:00:(\d+\.\d+)", probe)
 volume = re.search(r"mean_volume: (-?[\d.]+) dB", probe)
 assert duration and 7.5 < float(duration.group(1)) < 8.5, probe[-800:]

@@ -59,6 +59,13 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\DemoStudio.iss /O"${{ github.workspace }}\dist"
           Get-ChildItem dist
 
+      # This VM is not a home PC: it has long paths switched on, and MSYS2, Git
+      # and compilers on its PATH. Long paths go off here; the PATH is cut down
+      # to plain Windows in each step that runs the app.
+      - name: make this VM look like a home PC
+        shell: pwsh
+        run: Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem LongPathsEnabled 0
+
       # The real check: install it the way a user would, silently, then start
       # the app and see whether it answers. The app gates every request on a
       # one-time token and prints its address with that token on stdout, so the
@@ -66,14 +73,15 @@ jobs:
       - name: install it and start the app
         shell: pwsh
         run: |
+          $env:Path = "$env:SystemRoot\system32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
           $setup = Get-ChildItem dist\DemoStudio-Setup.exe
           Start-Process -Wait -FilePath $setup.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
           $app = "$env:LOCALAPPDATA\Programs\Demo Studio"
           if (-not (Test-Path "$app\.venv")) { throw "install did not build the Python environment" }
           if (-not (Test-Path "$env:USERPROFILE\Demo Studio\bin\ffmpeg.exe")) { throw "ffmpeg was not put where render.py looks" }
           if (-not (Test-Path "$app\launch.vbs")) { throw "the launcher is missing" }
-          # This runner has long paths switched on; a home PC does not, and there
-          # Python cannot open any file whose full path is 260 characters or more.
+          # With long paths off, as on a home PC, Python cannot open a file whose
+          # full path is 260 characters or more; leave room for longer user names.
           $long = Get-ChildItem -LiteralPath $app -Recurse -File -Force | Sort-Object { $_.FullName.Length } | Select-Object -Last 1
           Write-Host "longest installed path: $($long.FullName.Length) characters ($($long.FullName))"
           if ($long.FullName.Length -ge 240) { throw "installed paths come too close to the 260-character limit of a normal Windows PC" }
@@ -101,6 +109,18 @@ jobs:
           if ($r.Content -notmatch "Demo Studio") { throw "the app answered but did not serve its page" }
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           Write-Host "installed, launched, and serving at $($url -replace '\?t=.*', '?t=<hidden>')"
+
+      # What a person does: record a voice, preview it, add a demo package and
+      # create the video - on the installed app, rendering with the ffmpeg we
+      # ship. Voices are made on the CPU here, as on most Windows PCs.
+      - name: use it the way a person would
+        shell: pwsh
+        timeout-minutes: 90
+        run: |
+          $env:Path = "$env:SystemRoot\system32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+          $env:DEMO_STUDIO_FFMPEG = "$env:USERPROFILE\Demo Studio\bin\ffmpeg.exe"
+          & "$env:LOCALAPPDATA\Programs\Demo Studio\.venv\Scripts\python.exe" tests\check.py
+          if ($LASTEXITCODE) { throw "the installed app failed the full check" }
 
       - name: publish
         shell: bash
