@@ -12,6 +12,9 @@ jobs:
         os: [macos-14, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      # GitHub's macOS runners give the GPU too little memory for the voice model ("MPS backend out of memory").
+      DEMO_STUDIO_DEVICE: ${{ matrix.os == 'macos-14' && 'cpu' || '' }}
     defaults:
       run:
         shell: bash
@@ -34,9 +37,6 @@ jobs:
           (cd kit && npm install && npx playwright-core install chromium)
 
       - name: App (access, voice upload, demo import, render)
-        # GitHub's macOS runners give the GPU too little memory for the voice model ("MPS backend out of memory").
-        env:
-          DEMO_STUDIO_DEVICE: ${{ runner.os == 'macOS' && 'cpu' || '' }}
         run: uv run python tests/check.py
 
       - name: Recording kit (minimal demo, end to end)
